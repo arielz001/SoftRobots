@@ -1,0 +1,88 @@
+/******************************************************************************
+*                 SOFA, Simulation Open-Framework Architecture                *
+*                    (c) 2006 INRIA, USTL, UJF, CNRS, MGH                     *
+*                                                                             *
+* This program is free software; you can redistribute it and/or modify it     *
+* under the terms of the GNU Lesser General Public License as published by    *
+* the Free Software Foundation; either version 2.1 of the License, or (at     *
+* your option) any later version.                                             *
+*                                                                             *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
+* for more details.                                                           *
+*                                                                             *
+* You should have received a copy of the GNU Lesser General Public License    *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
+*******************************************************************************
+*                           Plugin SoftRobots                                 *
+*                                                                             *
+* This plugin is also distributed under the GNU LGPL (Lesser General          *
+* Public License) license with the same conditions than SOFA.                 *
+*                                                                             *
+* Contributors: Defrost team  (INRIA, University of Lille, CNRS,              *
+*               Ecole Centrale de Lille)                                      *
+*                                                                             *
+* Contact information: https://project.inria.fr/softrobot/contact/            *
+******************************************************************************/
+#define SOFTROBOTS_CameraProjectionMODEL_CPP
+#include <SoftRobots/component/constraint/model/CameraProjectionModel.inl>
+#include <sofa/core/ObjectFactory.h>
+
+namespace softrobots::constraint
+{
+
+using namespace sofa::defaulttype;
+using sofa::core::ConstraintParams;
+
+
+template<>
+void CameraProjectionModel<Rigid3Types>::normalizeDirections()
+{
+    VecDeriv directions;
+    directions.resize(6);
+    for(unsigned int i=0; i<6; i++)
+    {
+        directions[i] = d_directions.getValue()[i];
+        Vec<3, Real> vector1 {directions[i][0],directions[i][1],directions[i][2]};
+        Vec<3, Real> vector2 {directions[i][3],directions[i][4],directions[i][5]};
+        vector1.normalize();
+        vector2.normalize();
+        directions[i] = Deriv(vector1,vector2);
+    }
+    d_directions.setValue(directions);
+}
+
+
+template<>
+void CameraProjectionModel<Vec1Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+}
+
+template<>
+void CameraProjectionModel<Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+    vparams->drawTool()->drawPoints(points, size, color);
+}
+
+template<>
+void CameraProjectionModel<Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+    vector<Vec3> pointsVec3;
+    for (auto point: points)
+        pointsVec3.push_back(Vec3(point[0], point[1], 0.));
+    vparams->drawTool()->drawPoints(pointsVec3, size, color);
+}
+
+template<>
+void CameraProjectionModel<Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+    vector<Vec3> pointsVec3;
+    for (auto point: points)
+        pointsVec3.push_back(point.getCenter());
+    vparams->drawTool()->drawPoints(pointsVec3, size, color);
+}
+
+using namespace sofa::defaulttype;
+template class SOFA_SOFTROBOTS_API CameraProjectionModel<Vec1Types>;
+template class SOFA_SOFTROBOTS_API CameraProjectionModel<Vec2Types>;
+template class SOFA_SOFTROBOTS_API CameraProjectionModel<Vec3Types>;
+template class SOFA_SOFTROBOTS_API CameraProjectionModel<Rigid3Types>;
+
+} // namespace
