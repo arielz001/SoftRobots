@@ -17,6 +17,9 @@
 *******************************************************************************
 *                           Plugin SoftRobots                                 *
 *                                                                             *
+* This plugin is also distributed under the GNU LGPL (Lesser General          *
+* Public License) license with the same conditions than SOFA.                 *
+*                                                                             *
 * Contributors: Defrost team  (INRIA, University of Lille, CNRS,              *
 *               Ecole Centrale de Lille)                                      *
 *                                                                             *
@@ -25,28 +28,25 @@
 #pragma once
 
 #include <SoftRobots/component/behavior/SoftRobotsConstraint.h>
-#include <Eigen/Dense>
 
 namespace softrobots::constraint
 {
 
-using softrobots::behavior::SoftRobotsConstraint;
-using sofa::core::ConstraintParams;
-using sofa::linearalgebra::BaseVector;
-using sofa::type::Vec;
-using sofa::type::Vec2;
-using sofa::core::visual::VisualParams;
+using softrobots::behavior::SoftRobotsConstraint ;
+using sofa::core::ConstraintParams ;
+using sofa::linearalgebra::BaseVector ;
+using sofa::type::Vec ;
+using sofa::core::visual::VisualParams ;
 
 /**
- * \class CameraProjectionModel
- * \brief Projects 3D rigid poses into 2D camera coordinates and models target ellipse features.
+ * This class contains common implementation of position constraints
 */
 template< class DataTypes >
 class CameraProjectionModel : virtual public SoftRobotsConstraint<DataTypes>
 {
 public:
-    SOFA_CLASS(SOFA_TEMPLATE(CameraProjectionModel, DataTypes),
-               SOFA_TEMPLATE(SoftRobotsConstraint, DataTypes));
+    SOFA_CLASS(SOFA_TEMPLATE(CameraProjectionModel,DataTypes),
+               SOFA_TEMPLATE(SoftRobotsConstraint,DataTypes));
 
     typedef typename DataTypes::VecCoord            VecCoord;
     typedef typename DataTypes::VecDeriv            VecDeriv;
@@ -65,75 +65,74 @@ public:
     CameraProjectionModel(MechanicalState* object = nullptr);
     ~CameraProjectionModel() override;
 
-    /////////////// Inherited from BaseObject ////////////
+    /////////////// Inherited from BaseObject  ////////////
     void init() override;
     void reinit() override;
     void draw(const VisualParams* vparams) override;
     //////////////////////////////////////////////////////
 
     /////////////// Inherited from Effector ////////////
-    void buildConstraintMatrix(const ConstraintParams* cParams,
+    void buildConstraintMatrix(const ConstraintParams* cParams ,
                                DataMatrixDeriv &cMatrix,
                                unsigned int &cIndex,
                                const DataVecCoord &x) override;
     ///////////////////////////////////////////////////////////////
 
+
     /////////////// Inherited from SoftRobotsBaseConstraint ////////////////
     void storeResults(sofa::type::vector<double> &delta) override;
     ///////////////////////////////////////////////////////////////////////////
 
-    /**
-     * \brief Computes the 5-element projected ellipse [cx, cy, major, minor, angle] from a 3D pose.
-     */
-    Eigen::Matrix<double, 5, 1> computeProjectedEllipse(const Coord& pose3D);
-
 protected:
-    sofa::Data<sofa::type::vector<unsigned int>>     d_indices;
-    sofa::Data<Vec2>                                  d_focalLength;
-    sofa::Data<Vec2>                                  d_principalPoint;
-    sofa::Data<Real>                                  d_ellipseRadius;
+    sofa::Data<sofa::type::vector<unsigned int> >     d_indices;
     sofa::Data<sofa::type::vector<Real>>              d_weight;
     sofa::Data<VecDeriv>                              d_directions;
     sofa::Data<VecDeriv>                              d_Jacobian;
+    sofa::Data<VecDeriv>                              d_PosSensor;
+    sofa::Data<VecDeriv>                              d_mum;
     sofa::Data<Vec<Deriv::total_size, bool>>          d_useDirections;
     sofa::Data<sofa::type::vector<Real>>              d_delta;
 
     ////////////////////////// Inherited attributes ////////////////////////////
-    using SoftRobotsConstraint<DataTypes>::m_nbLines;
-    using SoftRobotsConstraint<DataTypes>::d_constraintIndex;
-    using SoftRobotsConstraint<DataTypes>::d_componentState;
-    using SoftRobotsConstraint<DataTypes>::m_state;
+    using SoftRobotsConstraint<DataTypes>::m_nbLines ;
+    using SoftRobotsConstraint<DataTypes>::d_constraintIndex ;
+    using SoftRobotsConstraint<DataTypes>::d_componentState ;
+    using SoftRobotsConstraint<DataTypes>::m_state ;
     ////////////////////////////////////////////////////////////////////////////
 
     void setDefaultDirections();
     void setDefaultUseDirections();
     void normalizeDirections();
-    void drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+    void drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color) ;
 
 private:
     void internalInit();
     void checkIndicesRegardingState();
     void setIndicesDefaultValue();
     void resizeIndicesRegardingState();
+
+
 };
+
 
 template<> SOFA_SOFTROBOTS_API
 void CameraProjectionModel<sofa::defaulttype::Rigid3Types>::normalizeDirections();
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+void CameraProjectionModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+void CameraProjectionModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+void CameraProjectionModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
-#if !defined(SOFTROBOTS_CameraProjectionMODEL_CPP)
+#if !defined(SOFTROBOTS_CAMERAPROJECTIONMODEL_CPP)
 extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec1Types>;
 extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec2Types>;
 extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec3Types>;
 extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Rigid3Types>;
 #endif
 
-} // namespace softrobots::constraint
+} // namespace
+
