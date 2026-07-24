@@ -17,9 +17,6 @@
 *******************************************************************************
 *                           Plugin SoftRobots                                 *
 *                                                                             *
-* This plugin is also distributed under the GNU LGPL (Lesser General          *
-* Public License) license with the same conditions than SOFA.                 *
-*                                                                             *
 * Contributors: Defrost team  (INRIA, University of Lille, CNRS,              *
 *               Ecole Centrale de Lille)                                      *
 *                                                                             *
@@ -28,6 +25,7 @@
 #define SOFTROBOTS_CameraProjectionMODEL_CPP
 #include <SoftRobots/component/constraint/model/CameraProjectionModel.inl>
 #include <sofa/core/ObjectFactory.h>
+#include <sofa/core/visual/DrawTool.h>
 
 namespace softrobots::constraint
 {
@@ -35,54 +33,76 @@ namespace softrobots::constraint
 using namespace sofa::defaulttype;
 using sofa::core::ConstraintParams;
 
+SOFA_DECL_CLASS(CameraProjectionModel)
+
+int CameraProjectionModelClass = sofa::core::RegisterObject("Project 3D rigid bodies onto 2D image coordinates and extract target ellipse features.")
+#ifndef SOFA_FLOAT
+    .add<CameraProjectionModel<Rigid3Types>>(true)
+#endif
+#ifndef SOFA_DOUBLE
+    .add<CameraProjectionModel<Rigid3fTypes>>()
+#endif
+    ;
 
 template<>
 void CameraProjectionModel<Rigid3Types>::normalizeDirections()
 {
     VecDeriv directions;
     directions.resize(6);
-    for(unsigned int i=0; i<6; i++)
+    for (unsigned int i = 0; i < 6; ++i)
     {
         directions[i] = d_directions.getValue()[i];
-        Vec<3, Real> vector1 {directions[i][0],directions[i][1],directions[i][2]};
-        Vec<3, Real> vector2 {directions[i][3],directions[i][4],directions[i][5]};
+        Vec<3, Real> vector1{directions[i][0], directions[i][1], directions[i][2]};
+        Vec<3, Real> vector2{directions[i][3], directions[i][4], directions[i][5]};
         vector1.normalize();
         vector2.normalize();
-        directions[i] = Deriv(vector1,vector2);
+        directions[i] = Deriv(vector1, vector2);
     }
     d_directions.setValue(directions);
 }
 
-
 template<>
-void CameraProjectionModel<Vec1Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+void CameraProjectionModel<Vec1Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const RGBAColor& color)
+{
+    SOFA_UNUSED(vparams);
+    SOFA_UNUSED(points);
+    SOFA_UNUSED(size);
+    SOFA_UNUSED(color);
 }
 
 template<>
-void CameraProjectionModel<Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+void CameraProjectionModel<Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const RGBAColor& color)
+{
     vparams->drawTool()->drawPoints(points, size, color);
 }
 
 template<>
-void CameraProjectionModel<Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+void CameraProjectionModel<Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const RGBAColor& color)
+{
     vector<Vec3> pointsVec3;
-    for (auto point: points)
-        pointsVec3.push_back(Vec3(point[0], point[1], 0.));
+    pointsVec3.reserve(points.size());
+    for (const auto& point : points)
+    {
+        pointsVec3.push_back(Vec3(point[0], point[1], 0.0));
+    }
     vparams->drawTool()->drawPoints(pointsVec3, size, color);
 }
 
 template<>
-void CameraProjectionModel<Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
+void CameraProjectionModel<Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const RGBAColor& color)
+{
     vector<Vec3> pointsVec3;
-    for (auto point: points)
+    pointsVec3.reserve(points.size());
+    for (const auto& point : points)
+    {
         pointsVec3.push_back(point.getCenter());
+    }
     vparams->drawTool()->drawPoints(pointsVec3, size, color);
 }
 
-using namespace sofa::defaulttype;
 template class SOFA_SOFTROBOTS_API CameraProjectionModel<Vec1Types>;
 template class SOFA_SOFTROBOTS_API CameraProjectionModel<Vec2Types>;
 template class SOFA_SOFTROBOTS_API CameraProjectionModel<Vec3Types>;
 template class SOFA_SOFTROBOTS_API CameraProjectionModel<Rigid3Types>;
 
-} // namespace
+} // namespace softrobots::constraint
