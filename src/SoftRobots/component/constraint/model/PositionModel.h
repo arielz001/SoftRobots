@@ -113,21 +113,17 @@ private:
 
 
 template<> SOFA_SOFTROBOTS_API
-inline void PositionModel<sofa::defaulttype::Rigid3Types>::normalizeDirections();
+void PositionModel<sofa::defaulttype::Rigid3Types>::normalizeDirections();
 
-
-// ADDED LINE
-template<> SOFA_SOFTROBOTS_API
-inline void PositionModel<sofa::defaulttype::Vec1Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-inline void PositionModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
+void PositionModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-inline void PositionModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
+void PositionModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-inline void PositionModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
+void PositionModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 #if !defined(SOFTROBOTS_POSITIONMODEL_CPP)
 extern template class SOFA_SOFTROBOTS_API PositionModel<sofa::defaulttype::Vec1Types>;
