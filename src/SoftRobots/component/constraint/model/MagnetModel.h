@@ -42,10 +42,10 @@ using sofa::core::visual::VisualParams ;
  * This class contains common implementation of position constraints
 */
 template< class DataTypes >
-class CameraProjectionModel : virtual public SoftRobotsConstraint<DataTypes>
+class MagnetModel : virtual public SoftRobotsConstraint<DataTypes>
 {
 public:
-    SOFA_CLASS(SOFA_TEMPLATE(CameraProjectionModel,DataTypes),
+    SOFA_CLASS(SOFA_TEMPLATE(MagnetModel,DataTypes),
                SOFA_TEMPLATE(SoftRobotsConstraint,DataTypes));
 
     typedef typename DataTypes::VecCoord            VecCoord;
@@ -62,8 +62,8 @@ public:
     typedef sofa::Data<MatrixDeriv>                       DataMatrixDeriv;
 
 public:
-    CameraProjectionModel(MechanicalState* object = nullptr);
-    ~CameraProjectionModel() override;
+    MagnetModel(MechanicalState* object = nullptr);
+    ~MagnetModel() override;
 
     /////////////// Inherited from BaseObject  ////////////
     void init() override;
@@ -87,12 +87,11 @@ protected:
     sofa::Data<sofa::type::vector<unsigned int> >     d_indices;
     sofa::Data<sofa::type::vector<Real>>              d_weight;
     sofa::Data<VecDeriv>                              d_directions;
+    sofa::Data<VecDeriv>                              d_Jacobian;
+    sofa::Data<VecDeriv>                              d_PosSensor;
+    sofa::Data<VecDeriv>                              d_mum;
     sofa::Data<Vec<Deriv::total_size, bool>>          d_useDirections;
     sofa::Data<sofa::type::vector<Real>>              d_delta;
-    sofa::Data<sofa::type::Vec2d>                     d_focalLength;
-    sofa::Data<sofa::type::Vec2d>                     d_principalPoint;
-    sofa::Data<Real>                                  d_radiusEllipse;
-    sofa::Data<VecDeriv>                              d_Jacobian;
 
     ////////////////////////// Inherited attributes ////////////////////////////
     using SoftRobotsConstraint<DataTypes>::m_nbLines ;
@@ -117,29 +116,22 @@ private:
 
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Rigid3Types>::normalizeDirections();
+void MagnetModel<sofa::defaulttype::Rigid3Types>::normalizeDirections();
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
+void MagnetModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
+void MagnetModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
+void MagnetModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
-// #if !defined(SOFTROBOTS_CameraProjectionMODEL_CPP)
-// extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec1Types>;
-// extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec2Types>;
-// extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec3Types>;
-// extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Rigid3Types>;
-// #endif
-
-#if !defined(SOFTROBOTS_CAMERAPROJECTIONMODEL_CPP)
-extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec1Types>;
-extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec2Types>;
-extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Vec3Types>;
-extern template class SOFA_SOFTROBOTS_API CameraProjectionModel<sofa::defaulttype::Rigid3Types>;
+#if !defined(SOFTROBOTS_MAGNETMODEL_CPP)
+extern template class SOFA_SOFTROBOTS_API MagnetModel<sofa::defaulttype::Vec1Types>;
+extern template class SOFA_SOFTROBOTS_API MagnetModel<sofa::defaulttype::Vec2Types>;
+extern template class SOFA_SOFTROBOTS_API MagnetModel<sofa::defaulttype::Vec3Types>;
+extern template class SOFA_SOFTROBOTS_API MagnetModel<sofa::defaulttype::Rigid3Types>;
 #endif
 
 } // namespace

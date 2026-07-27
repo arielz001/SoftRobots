@@ -97,6 +97,7 @@ const char* getModuleComponentList()
 } // namespace SoftRobots
 
 SOFA_LINK_CLASS(AnimationEditor)
+SOFA_LINK_CLASS(CameraProjectionModel)
 SOFA_LINK_CLASS(DataVariationLimiter)
 SOFA_LINK_CLASS(PartialRigidificationConstraint)
 SOFA_LINK_CLASS(PartialRigidificationForceField)
@@ -107,6 +108,5 @@ SOFA_LINK_CLASS(InteractiveControl)
 SOFA_LINK_CLASS(UnilateralPlaneConstraint)
 SOFA_LINK_CLASS(VolumeFromTriangles)
 SOFA_LINK_CLASS(VolumeFromTetrahedrons)
-SOFA_LINK_CLASS(CameraProjectionModel)
 
 
