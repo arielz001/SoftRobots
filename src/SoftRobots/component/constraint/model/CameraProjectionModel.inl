@@ -403,6 +403,7 @@ void CameraProjectionModel<DataTypes>::buildConstraintMatrix(const ConstraintPar
             );
         }
 
+        std::cout << "Sensibilidad Jacobiano dY (px/cm): " << dE_dy[1] << std::endl;
 
     }
 
