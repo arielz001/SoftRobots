@@ -85,6 +85,9 @@ CameraProjectionModel<DataTypes>::CameraProjectionModel(MechanicalState* object)
                               "values are all true."))
 
     , d_delta(initData(&d_delta, "delta","Distance to target"))
+
+    , d_cameraPosition(initData(&d_cameraPosition, "cameraPosition",
+                                 "Position of the camera in the scene"))
 {
     d_delta.setReadOnly(true);
 
@@ -270,33 +273,84 @@ void CameraProjectionModel<DataTypes>::resizeIndicesRegardingState()
 
 
 
+// Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
+//     double x, double y, double z,
+//     const Eigen::Matrix3d& R,
+//     double radius,
+//     const sofa::type::Vec2d& focalLength,
+//     const sofa::type::Vec2d& principalPoint)
+// {
+//     // 1. Centro de la elipse en píxeles (Proyección perspectiva Pinhole)
+//     double u = focalLength[0] * (x / z) + principalPoint[0];
+//     double v = focalLength[1] * (y / z) + principalPoint[1];
+
+//     // 2. Extraer la normal del disco 3D (tercera columna de la matriz de rotación)
+//     Eigen::Vector3d normal = R.col(2); 
+
+//     // inclination
+//     double cos_tilt = std::abs(normal(2));
+//     if (cos_tilt < 1e-3) cos_tilt = 1e-3; // Evitar división por cero si está de canto
+
+//     // Semiejes
+//     double semi_a = focalLength[0] * (radius / z); 
+//     double semi_b = semi_a * cos_tilt;           
+
+//     // 5. Angle
+//     double alpha = std::atan2(normal(1), normal(0));
+
+//     Eigen::Matrix<double, 5, 1> ellipse;
+//     ellipse << u, v, semi_a, semi_b, alpha;
+//     return ellipse;
+// }
+
+
 Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
     double x, double y, double z,
     const Eigen::Matrix3d& R,
     double radius,
     const sofa::type::Vec2d& focalLength,
-    const sofa::type::Vec2d& principalPoint)
+    const sofa::type::Vec2d& principalPoint,
+    const sofa::type::Vec3d& cameraPos)
 {
-    // 1. Centro de la elipse en píxeles (Proyección perspectiva Pinhole)
-    double u = focalLength[0] * (x / z) + principalPoint[0];
-    double v = focalLength[1] * (y / z) + principalPoint[1];
+    // 1. Coordenadas relativas a la cámara
+    double x_rel = x - cameraPos[0];
+    double y_rel = y - cameraPos[1];
+    double z_rel = z - cameraPos[2];
+    
+    // 2. Control de división por cero
+    double safe_z = std::abs(z_rel);
+    // if (safe_z < 5.0) safe_z = 5.0; 
 
-    // 2. Extraer la normal del disco 3D (tercera columna de la matriz de rotación)
+    // 3. Proyección perspectiva en el plano de la imagen (Y invertido para formato píxel)
+    double u = focalLength[0] * (x_rel / safe_z) + principalPoint[0];
+    double v = focalLength[1] * (y_rel / safe_z) + principalPoint[1]; 
+
+    // 4. Normal e inclinación
     Eigen::Vector3d normal = R.col(2); 
-
-    // inclination
     double cos_tilt = std::abs(normal(2));
-    if (cos_tilt < 1e-3) cos_tilt = 1e-3; // Evitar división por cero si está de canto
+    if (cos_tilt < 1e-3) cos_tilt = 1e-3;
 
-    // Semiejes
-    double semi_a = focalLength[0] * (radius / z); 
+    // 5. Semiejes
+    double semi_a = focalLength[0] * (radius / safe_z);  
     double semi_b = semi_a * cos_tilt;           
 
-    // 5. Angle
-    double alpha = std::atan2(normal(1), normal(0));
+    // 6. Ángulo del semieje mayor (+90° respecto a la normal)
+    double alpha_rad = std::atan2(-normal(1), normal(0)) + (M_PI / 2.0);
+    double alpha_deg = alpha_rad * (180.0 / M_PI);
+
+    // Normalización al rango [0, 180) por simetría de elipse
+    while (alpha_deg < 0.0) alpha_deg += 180.0;
+    while (alpha_deg >= 180.0) alpha_deg -= 180.0;
 
     Eigen::Matrix<double, 5, 1> ellipse;
-    ellipse << u, v, semi_a, semi_b, alpha;
+    ellipse << u, v, semi_a, semi_b, alpha_deg;
+
+    // Logs de depuración
+    std::cout << "ellipse: " << ellipse.transpose() << std::endl;
+    std::cout << "relative position: " << x_rel << ", " << y_rel << ", " << z_rel << std::endl;
+    std::cout << "camera position: " << cameraPos[0] << ", " << cameraPos[1] << ", " << cameraPos[2] << std::endl;
+    std::cout << "xyz position: " << x << ", " << y << ", " << z << std::endl;
+
     return ellipse;
 }
 
@@ -346,6 +400,8 @@ void CameraProjectionModel<DataTypes>::buildConstraintMatrix(const ConstraintPar
     const auto focalLength = d_focalLength.getValue();
     const auto principalPoint = d_principalPoint.getValue();
     const double radius = d_radiusEllipse.getValue();
+    const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); // Acceso directo a Vec3d
+
 
     auto Jacobian = sofa::helper::getWriteAccessor(d_Jacobian);
     const auto& readAccessor = sofa::helper::getReadAccessor(x);
@@ -364,32 +420,32 @@ void CameraProjectionModel<DataTypes>::buildConstraintMatrix(const ConstraintPar
         Eigen::Matrix3d R = q.toRotationMatrix();
 
         // 3. Estado Base de la Elipse 2D [u, v, a, b, alpha]
-        Eigen::Matrix<double, 5, 1> E_0 = calculateProjectedEllipse(x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint);
+        Eigen::Matrix<double, 5, 1> E_0 = calculateProjectedEllipse(x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
 
         // --- DERIVADAS RESPECTO A X ---
-        Eigen::Matrix<double, 5, 1> E_x = calculateProjectedEllipse(x_pos + Cambio, y_pos, z_pos, R, radius, focalLength, principalPoint);
+        Eigen::Matrix<double, 5, 1> E_x = calculateProjectedEllipse(x_pos + Cambio, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
         Eigen::Matrix<double, 5, 1> dE_dx = (E_x - E_0) / Cambio;
 
         // --- DERIVADAS RESPECTO A Y ---
-        Eigen::Matrix<double, 5, 1> E_y = calculateProjectedEllipse(x_pos, y_pos + Cambio, z_pos, R, radius, focalLength, principalPoint);
+        Eigen::Matrix<double, 5, 1> E_y = calculateProjectedEllipse(x_pos, y_pos + Cambio, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
         Eigen::Matrix<double, 5, 1> dE_dy = (E_y - E_0) / Cambio;
 
         // --- DERIVADAS RESPECTO A Z ---
-        Eigen::Matrix<double, 5, 1> E_z = calculateProjectedEllipse(x_pos, y_pos, z_pos + Cambio, R, radius, focalLength, principalPoint);
+        Eigen::Matrix<double, 5, 1> E_z = calculateProjectedEllipse(x_pos, y_pos, z_pos + Cambio, R, radius, focalLength, principalPoint, cameraPosition);
         Eigen::Matrix<double, 5, 1> dE_dz = (E_z - E_0) / Cambio;
 
         // --- DERIVADAS RESPECTO A ROTACIONES (Perturbación en ejes X, Y, Z de rotación) ---
         // Perturbación Roll (alrededor de X)
         Eigen::Matrix3d R_rx = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitX());
-        Eigen::Matrix<double, 5, 1> dE_dRx = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rx, radius, focalLength, principalPoint) - E_0) / Cambio;
+        Eigen::Matrix<double, 5, 1> dE_dRx = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rx, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
 
         // Perturbación Pitch (alrededor de Y)
         Eigen::Matrix3d R_ry = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitY());
-        Eigen::Matrix<double, 5, 1> dE_dRy = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_ry, radius, focalLength, principalPoint) - E_0) / Cambio;
+        Eigen::Matrix<double, 5, 1> dE_dRy = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_ry, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
 
         // Perturbación Yaw (alrededor de Z)
         Eigen::Matrix3d R_rz = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitZ());
-        Eigen::Matrix<double, 5, 1> dE_dRz = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rz, radius, focalLength, principalPoint) - E_0) / Cambio;
+        Eigen::Matrix<double, 5, 1> dE_dRz = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rz, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
 
         // 4. Llenar la Matriz Jacobiana (5 Filas: u, v, a, b, alpha)
         for (int i = 0; i < 5; ++i) {
@@ -401,9 +457,8 @@ void CameraProjectionModel<DataTypes>::buildConstraintMatrix(const ConstraintPar
                 dE_dRy[i],  // d/dPitch
                 dE_dRz[i]   // d/dYaw
             );
-        }
+        } 
 
-        std::cout << "Sensibilidad Jacobiano dY (px/cm): " << dE_dy[1] << std::endl;
 
     }
 
@@ -531,10 +586,10 @@ void CameraProjectionModel<DataTypes>::draw(const VisualParams* vparams)
     const auto focalLength = d_focalLength.getValue();
     const auto principalPoint = d_principalPoint.getValue();
     const double radius = d_radiusEllipse.getValue();
-
+    const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); // Acceso directo a Vec3d
     // 2. Obtener los 5 parámetros de la elipse 2D [u, v, a, b, alpha]
     Eigen::Matrix<double, 5, 1> ellipse = calculateProjectedEllipse(
-        x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint);
+        x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
 
     double u = ellipse[0];
     double v = ellipse[1];
