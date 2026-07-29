@@ -402,6 +402,8 @@ void CameraProjectionModel<DataTypes>::buildConstraintMatrix(const ConstraintPar
                 dE_dRz[i]   // d/dYaw
             );
         }
+
+
     }
 
     // 5. Escribir las 5 restricciones en el sistema global de SOFA
@@ -432,15 +434,32 @@ void CameraProjectionModel<DataTypes>::storeResults(vector<double> &delta)
 }
 
 
+// template<class DataTypes>
+// void CameraProjectionModel<DataTypes>::setDefaultDirections()
+// {
+//     VecDeriv directions(Deriv::total_size);
+//     for(sofa::Size i=0; i<Deriv::total_size; i++)
+//         directions[i][i] = 1.;
+//     d_directions.setValue(directions);
+//     d_Jacobian.setValue(directions);
+//     // d_PosSensor.setValue(directions);
+// }
+
 template<class DataTypes>
 void CameraProjectionModel<DataTypes>::setDefaultDirections()
 {
-    VecDeriv directions(Deriv::total_size);
-    for(sofa::Size i=0; i<Deriv::total_size; i++)
-        directions[i][i] = 1.;
-    d_directions.setValue(directions);
-    d_Jacobian.setValue(directions);
-    // d_PosSensor.setValue(directions);
+    using Deriv = typename DataTypes::Deriv;
+    sofa::type::vector<Deriv> jacobianInit(5); // 5 restricciones (u, v, a, b, alpha)
+
+    for (size_t i = 0; i < 5; ++i)
+    {
+        jacobianInit[i].clear(); // Pone a cero todas las componentes del tipo Deriv
+        if (i < Deriv::total_size)
+        {
+            jacobianInit[i][i] = 1.0;
+        }
+    }
+    d_Jacobian.setValue(jacobianInit);
 }
 
 template<class DataTypes>
@@ -463,24 +482,108 @@ void CameraProjectionModel<DataTypes>::normalizeDirections()
 }
 
 
+// template<class DataTypes>
+// void CameraProjectionModel<DataTypes>::draw(const VisualParams* vparams)
+// {
+//     if(d_componentState.getValue() != ComponentState::Valid)
+//         return;
+
+//     if (!vparams->displayFlags().getShowInteractionForceFields())
+//         return;
+
+//     ReadAccessor<sofa::Data<VecCoord> > positions = m_state->readPositions();
+//     ReadAccessor<sofa::Data<sofa::type::vector<sofa::Index>> > indices = d_indices;
+//     vector<Coord> points;
+//     points.reserve(indices.size());
+//     for (unsigned int i=0; i<indices.size(); i++)
+//     {
+//         points.push_back(positions[indices[i]]);
+//     }
+//     drawPoints(vparams, points, 10.0f, RGBAColor::green());
+// }
+
 template<class DataTypes>
 void CameraProjectionModel<DataTypes>::draw(const VisualParams* vparams)
 {
-    if(d_componentState.getValue() != ComponentState::Valid)
+    if (d_componentState.getValue() != ComponentState::Valid)
         return;
 
+    // Solo dibujar si está activada la opción de mostrar constraints/forcefields
     if (!vparams->displayFlags().getShowInteractionForceFields())
         return;
 
-    ReadAccessor<sofa::Data<VecCoord> > positions = m_state->readPositions();
-    ReadAccessor<sofa::Data<sofa::type::vector<sofa::Index>> > indices = d_indices;
-    vector<Coord> points;
-    points.reserve(indices.size());
-    for (unsigned int i=0; i<indices.size(); i++)
-    {
-        points.push_back(positions[indices[i]]);
-    }
-    drawPoints(vparams, points, 10.0f, RGBAColor::green());
-}
+    ReadAccessor<sofa::Data<VecCoord>> positions = m_state->readPositions();
+    ReadAccessor<sofa::Data<sofa::type::vector<sofa::Index>>> indices = d_indices;
 
+    if (indices.empty() || positions.empty()) 
+        return;
+
+    // 1. Obtener la pose 3D del punto actual
+    const auto& coord = positions[indices[0]];
+    double x_pos = coord[0];
+    double y_pos = coord[1];
+    double z_pos = coord[2];
+
+    Eigen::Quaterniond q(coord[6], coord[3], coord[4], coord[5]);
+    Eigen::Matrix3d R = q.toRotationMatrix();
+
+    const auto focalLength = d_focalLength.getValue();
+    const auto principalPoint = d_principalPoint.getValue();
+    const double radius = d_radiusEllipse.getValue();
+
+    // 2. Obtener los 5 parámetros de la elipse 2D [u, v, a, b, alpha]
+    Eigen::Matrix<double, 5, 1> ellipse = calculateProjectedEllipse(
+        x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint);
+
+    double u = ellipse[0];
+    double v = ellipse[1];
+    double a = ellipse[2];
+    double b = ellipse[3];
+    double alpha = ellipse[4];
+
+    // 3. Generar el contorno de la elipse (36 segmentos)
+    const int num_segments = 36;
+    sofa::type::vector<sofa::type::Vec3d> ellipsePoints3D;
+    ellipsePoints3D.reserve(num_segments * 2);
+
+    double cos_a = std::cos(alpha);
+    double sin_a = std::sin(alpha);
+
+    sofa::type::Vec3d prevPoint;
+
+    for (int i = 0; i <= num_segments; ++i)
+    {
+        double theta = 2.0 * M_PI * i / num_segments;
+        
+        // Ecuación paramétrica de la elipse rotada en 2D (píxeles)
+        double x_local = a * std::cos(theta);
+        double y_local = b * std::sin(theta);
+
+        double u_p = u + (x_local * cos_a - y_local * sin_a);
+        double v_p = v + (x_local * sin_a + y_local * cos_a);
+
+        // Desproyección Pinhole inversa: convierte (u_p, v_p) de píxeles a 3D a la profundidad Z del objeto
+        double X_3d = (u_p - principalPoint[0]) * z_pos / focalLength[0];
+        double Y_3d = (v_p - principalPoint[1]) * z_pos / focalLength[1];
+        double Z_3d = z_pos;
+
+        sofa::type::Vec3d currentPoint(X_3d, Y_3d, Z_3d);
+
+        if (i > 0)
+        {
+            // Agregar par de puntos para formar el segmento de línea
+            ellipsePoints3D.push_back(prevPoint);
+            ellipsePoints3D.push_back(currentPoint);
+        }
+        prevPoint = currentPoint;
+    }
+
+    // 4. Renderizar el contorno de la elipse en rojo en el visor de SOFA
+    vparams->drawTool()->drawLines(ellipsePoints3D, 2.0f, RGBAColor::red());
+
+    // 5. Dibujar el centro del objeto en verde
+    vector<Coord> points;
+    points.push_back(positions[indices[0]]);
+    drawPoints(vparams, points, 8.0f, RGBAColor::green());
+}
 } // namespace
