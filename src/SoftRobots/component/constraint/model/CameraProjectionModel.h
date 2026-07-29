@@ -82,10 +82,8 @@ public:
     /////////////// Inherited from SoftRobotsBaseConstraint ////////////////
 
     // void storeResults(sofa::type::vector<double> &delta) override;
-    /////////////// Inherited from SoftRobotsBaseConstraint ////////////////
     void storeResults(sofa::type::vector<double> &delta) override;
     
-    // AÑADIR ESTA LÍNEA (con los 3 parámetros exactos):
     void getConstraintViolation(const sofa::core::ConstraintParams* cParams,
                                 sofa::linearalgebra::BaseVector* resV,
                                 const sofa::linearalgebra::BaseVector* Jdx) override;
