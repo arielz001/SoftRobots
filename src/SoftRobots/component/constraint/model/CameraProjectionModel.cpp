@@ -54,6 +54,17 @@ void CameraProjectionModel<Rigid3Types>::normalizeDirections()
 }
 
 
+
+int CameraProjectionModelClass = sofa::core::RegisterObject("This component is used to get the projection of a point on a camera")
+                .add< CameraProjectionModel<Vec1Types> >()
+                .add< CameraProjectionModel<Vec2Types> >()
+                .add< CameraProjectionModel<Vec3Types> >()
+                .add< CameraProjectionModel<Rigid3Types> >(true);
+
+        
+
+
+
 template<> SOFA_SOFTROBOTS_API
 void CameraProjectionModel<Vec1Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  RGBAColor& color) {
 }

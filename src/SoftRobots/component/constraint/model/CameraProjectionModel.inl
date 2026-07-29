@@ -301,6 +301,32 @@ Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
 }
 
 
+
+
+
+template<class DataTypes>
+void CameraProjectionModel<DataTypes>::getConstraintViolation(const ConstraintParams* cParams,
+                                                               sofa::linearalgebra::BaseVector *resV,
+                                                               const sofa::linearalgebra::BaseVector *Jdx)
+{
+    SOFA_UNUSED(cParams);
+    SOFA_UNUSED(Jdx);
+
+    if (d_componentState.getValue() != ComponentState::Valid)
+        return;
+
+    const auto& constraintIndex = sofa::helper::getReadAccessor(d_constraintIndex);
+    const auto& delta = sofa::helper::getReadAccessor(d_delta);
+
+    for (size_t i = 0; i < delta.size(); ++i)
+    {
+        resV->set(constraintIndex + i, delta[i]);
+    }
+}
+
+
+
+
 template<class DataTypes>
 void CameraProjectionModel<DataTypes>::buildConstraintMatrix(const ConstraintParams* cParams,
                                                               DataMatrixDeriv &cMatrix,

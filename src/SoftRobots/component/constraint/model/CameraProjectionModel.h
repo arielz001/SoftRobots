@@ -80,10 +80,19 @@ public:
 
 
     /////////////// Inherited from SoftRobotsBaseConstraint ////////////////
+
+    // void storeResults(sofa::type::vector<double> &delta) override;
+    /////////////// Inherited from SoftRobotsBaseConstraint ////////////////
     void storeResults(sofa::type::vector<double> &delta) override;
+    
+    // AÑADIR ESTA LÍNEA (con los 3 parámetros exactos):
+    void getConstraintViolation(const sofa::core::ConstraintParams* cParams,
+                                sofa::linearalgebra::BaseVector* resV,
+                                const sofa::linearalgebra::BaseVector* Jdx) override;
     ///////////////////////////////////////////////////////////////////////////
 
-protected:
+// protected:
+public:
     sofa::Data<sofa::type::vector<unsigned int> >     d_indices;
     sofa::Data<sofa::type::vector<Real>>              d_weight;
     sofa::Data<VecDeriv>                              d_directions;
@@ -106,7 +115,8 @@ protected:
     void normalizeDirections();
     void drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color) ;
 
-private:
+// private:
+public:
     void internalInit();
     void checkIndicesRegardingState();
     void setIndicesDefaultValue();
