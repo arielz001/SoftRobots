@@ -181,6 +181,14 @@ void CameraProjectionModel<DataTypes>::internalInit()
         const auto principalPoint = sofa::helper::getReadAccessor(d_principalPoint);
     }
 
+    if(!d_cameraPosition.isSet())
+    {
+        // setDefaultDirections();
+    }
+    else
+    {
+        const auto cameraPosition = sofa::helper::getReadAccessor(d_cameraPosition);
+    }
 
 
 // ############################
