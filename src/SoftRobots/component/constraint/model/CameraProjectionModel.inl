@@ -281,36 +281,6 @@ void CameraProjectionModel<DataTypes>::resizeIndicesRegardingState()
 
 
 
-// Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
-//     double x, double y, double z,
-//     const Eigen::Matrix3d& R,
-//     double radius,
-//     const sofa::type::Vec2d& focalLength,
-//     const sofa::type::Vec2d& principalPoint)
-// {
-//     // 1. Centro de la elipse en píxeles (Proyección perspectiva Pinhole)
-//     double u = focalLength[0] * (x / z) + principalPoint[0];
-//     double v = focalLength[1] * (y / z) + principalPoint[1];
-
-//     // 2. Extraer la normal del disco 3D (tercera columna de la matriz de rotación)
-//     Eigen::Vector3d normal = R.col(2); 
-
-//     // inclination
-//     double cos_tilt = std::abs(normal(2));
-//     if (cos_tilt < 1e-3) cos_tilt = 1e-3; // Evitar división por cero si está de canto
-
-//     // Semiejes
-//     double semi_a = focalLength[0] * (radius / z); 
-//     double semi_b = semi_a * cos_tilt;           
-
-//     // 5. Angle
-//     double alpha = std::atan2(normal(1), normal(0));
-
-//     Eigen::Matrix<double, 5, 1> ellipse;
-//     ellipse << u, v, semi_a, semi_b, alpha;
-//     return ellipse;
-// }
-
 
 Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
     double x, double y, double z,
@@ -494,16 +464,6 @@ void CameraProjectionModel<DataTypes>::storeResults(vector<double> &delta)
 }
 
 
-// template<class DataTypes>
-// void CameraProjectionModel<DataTypes>::setDefaultDirections()
-// {
-//     VecDeriv directions(Deriv::total_size);
-//     for(sofa::Size i=0; i<Deriv::total_size; i++)
-//         directions[i][i] = 1.;
-//     d_directions.setValue(directions);
-//     d_Jacobian.setValue(directions);
-//     // d_PosSensor.setValue(directions);
-// }
 
 template<class DataTypes>
 void CameraProjectionModel<DataTypes>::setDefaultDirections()
@@ -542,25 +502,6 @@ void CameraProjectionModel<DataTypes>::normalizeDirections()
 }
 
 
-// template<class DataTypes>
-// void CameraProjectionModel<DataTypes>::draw(const VisualParams* vparams)
-// {
-//     if(d_componentState.getValue() != ComponentState::Valid)
-//         return;
-
-//     if (!vparams->displayFlags().getShowInteractionForceFields())
-//         return;
-
-//     ReadAccessor<sofa::Data<VecCoord> > positions = m_state->readPositions();
-//     ReadAccessor<sofa::Data<sofa::type::vector<sofa::Index>> > indices = d_indices;
-//     vector<Coord> points;
-//     points.reserve(indices.size());
-//     for (unsigned int i=0; i<indices.size(); i++)
-//     {
-//         points.push_back(positions[indices[i]]);
-//     }
-//     drawPoints(vparams, points, 10.0f, RGBAColor::green());
-// }
 
 template<class DataTypes>
 void CameraProjectionModel<DataTypes>::draw(const VisualParams* vparams)
