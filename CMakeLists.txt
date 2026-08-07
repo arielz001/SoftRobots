@@ -57,6 +57,9 @@ set(HEADER_FILES
     # camera model
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionModel.h
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionModel.inl
+    # ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionPointsModel.h
+    # ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionPointsModel.inl
+
 
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/AnimationEditor.h
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/AnimationEditor.inl
@@ -98,6 +101,7 @@ set(SOURCE_FILES
 
     # camera model
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionModel.cpp
+    # ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionPointsModel.cpp
 
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/AnimationEditor.cpp
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/DataVariationLimiter.cpp

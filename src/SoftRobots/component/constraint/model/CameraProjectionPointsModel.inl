@@ -34,6 +34,8 @@
 #include <SoftRobots/component/constraint/model/CameraProjectionPointsModel.h>
 #include <Eigen/Dense>
 
+//#include <Eigen/Geometry>  // Para cuaterniones
+//using namespace std;
 using namespace Eigen;
 
 namespace softrobots::constraint
@@ -41,40 +43,49 @@ namespace softrobots::constraint
 
 using sofa::core::objectmodel::ComponentState;
 using sofa::core::VecCoordId;
-using sofa::core::ConstVecCoordId;
-using sofa::helper::WriteAccessor;
-using sofa::helper::ReadAccessor;
-using sofa::type::vector;
+using sofa::core::ConstVecCoordId ;
+using sofa::helper::WriteAccessor ;
+using sofa::helper::ReadAccessor ;
+using sofa::type::vector ;
 using sofa::type::Vec;
 using sofa::type::Vec3;
 using sofa::type::RGBAColor;
+
+
 
 
 template<class DataTypes>
 CameraProjectionPointsModel<DataTypes>::CameraProjectionPointsModel(MechanicalState* object)
     : Inherit1(object)
     , d_indices(initData(&d_indices, "indices",
-                                 "Indices of the point(s) to project"))
+                                 "If indices size is lower than target size, \n"
+                                 "some target will not be considered"))
 
     , d_weight(initData(&d_weight, sofa::type::vector<Real>(Deriv::total_size, 1.), "weight",
                           "The parameter sets a weight to the minimization."))
 
     , d_directions(initData(&d_directions,"directions",
-                          "Directions in which to solve position."))
+                          "The parameter directions allows to specify the directions in \n"
+                          "which you want to solve the position."))
 
     , d_Jacobian(initData(&d_Jacobian,"JacobianBq",
-                          "Jacobian relating node motion to 2D image coordinates change"))
-
+                          "Jacobian relating node motion to B change\n"
+                          "."))
+    , d_radiusEllipse(initData(&d_radiusEllipse, "radiusEllipse",
+                                 "Radius of the 3D feature ellipse/disk"))
+                                 
     , d_focalLength(initData(&d_focalLength, "focalLength",
-                                 "Focal length of the camera (fx, fy)"))
+                                 "Focal length of the camera"))
 
     , d_principalPoint(initData(&d_principalPoint, "principalPoint",
-                                 "Principal point of the camera (cx, cy)"))
+                                 "Principal point of the camera"))
 
     , d_useDirections(initData(&d_useDirections,"useDirections",
-                              "Select directions to solve position."))
+                              "The parameter useDirections allows to select the directions in \n"
+                              "which you want to solve the position. If unspecified, the default \n"
+                              "values are all true."))
 
-    , d_delta(initData(&d_delta, "delta", "Distance to target (2D residual)"))
+    , d_delta(initData(&d_delta, "delta","Distance to target"))
 
     , d_cameraPosition(initData(&d_cameraPosition, "cameraPosition",
                                  "Position of the camera in the scene"))
@@ -87,13 +98,16 @@ CameraProjectionPointsModel<DataTypes>::CameraProjectionPointsModel(MechanicalSt
                                 auto weight = sofa::helper::getWriteAccessor(d_weight);
                                 if (weight.size() != Deriv::total_size)
                                 {
-                                    msg_info() << "Wrong size for weight data field. Resizing.";
-                                    Real w = weight.empty() ? 1. : weight[0];
+                                    msg_info() << "Wrong size for the data field weight, " << weight.size() <<
+                                        " instead of " << Deriv::total_size << ". Resizing, with weight[0] as the default value.";
+                                    Real w = weight.empty()? 1.: weight[0];
                                     d_weight.setValue(sofa::type::vector<Real>(Deriv::total_size, w));
                                 }
                                 return sofa::core::objectmodel::ComponentState::Valid;
                             }, {});
 }
+
+
 
 
 template<class DataTypes>
@@ -102,21 +116,30 @@ CameraProjectionPointsModel<DataTypes>::~CameraProjectionPointsModel()
 }
 
 
+
+
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::init()
 {
     d_componentState = ComponentState::Valid;
     Inherit1::init();
 
-    if(m_state == nullptr)
+    if(m_state==nullptr)
     {
-        msg_error() << "No mechanical state associated with this node. Deactivating object.";
+        msg_error() << "There is no mechanical state associated with this node. "
+                        "the object is deactivated. "
+                        "To remove this error message fix your scene possibly by "
+                        "adding a MechanicalObject." ;
         d_componentState = ComponentState::Invalid;
         return;
     }
 
     internalInit();
 }
+
+
+
 
 
 template<class DataTypes>
@@ -126,13 +149,56 @@ void CameraProjectionPointsModel<DataTypes>::reinit()
 }
 
 
+
+
+
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::internalInit()
 {
+    if(!d_radiusEllipse.isSet())
+    {
+        // setDefaultDirections();
+    }
+    else
+    {
+        const auto radiusEllipse = sofa::helper::getReadAccessor(d_radiusEllipse);
+    }
+    if(!d_focalLength.isSet())
+    {
+        // setDefaultDirections();
+    }
+    else
+    {
+        // const auto mum = sofa::helper::getReadAccessor(d_mum);
+        const auto focalLength = sofa::helper::getReadAccessor(d_focalLength);
+    }
+    if(!d_principalPoint.isSet())
+    {
+        // setDefaultDirections();
+    }
+    else
+    {
+        const auto principalPoint = sofa::helper::getReadAccessor(d_principalPoint);
+    }
+
+    if(!d_cameraPosition.isSet())
+    {
+        // setDefaultDirections();
+    }
+    else
+    {
+        const auto cameraPosition = sofa::helper::getReadAccessor(d_cameraPosition);
+    }
+
+
+// ############################
     if(!d_directions.isSet())
         setDefaultDirections();
     else
         normalizeDirections();
+// ###########################
+
 
     if(!d_useDirections.isSet())
     {
@@ -147,22 +213,22 @@ void CameraProjectionPointsModel<DataTypes>::internalInit()
             msg_warning(this) << "No direction given in useDirection. Set default all.";
         }
     }
-
+// #########################
     if(!d_indices.isSet())
     {
-        msg_warning(this) << "Indices not defined. Default value assigned: 0.";
+        msg_warning(this) <<"Indices not defined. Default value assigned 0.";
         setIndicesDefaultValue();
     }
 
     if(d_indices.getValue().size() > m_state->getSize())
     {
-        msg_warning(this) << "Indices size exceeds points count. Resizing.";
+        msg_warning(this) <<"Indices size can not be larger than the number of point in the context. Launch resize process.";
         resizeIndicesRegardingState();
     }
 
     if(d_indices.getValue().size() == 0)
     {
-        msg_error(this) << "Indices size is zero. Invalid component.";
+        msg_error(this) <<"Indices size is zero. The component will not work.";
         d_componentState = ComponentState::Invalid;
         return;
     }
@@ -174,21 +240,21 @@ void CameraProjectionPointsModel<DataTypes>::internalInit()
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::checkIndicesRegardingState()
 {
-    ReadAccessor<sofa::Data<VecCoord>> positions = m_state->readPositions();
+    ReadAccessor<sofa::Data<VecCoord> > positions = m_state->readPositions();
 
     if(d_indices.getValue().size() > positions.size())
     {
-        msg_error(this) << "Indices size larger than mechanical state size";
+        msg_error(this) << "Indices size is larger than mechanicalState size" ;
         d_componentState = ComponentState::Invalid;
         return;
     }
 
     const auto& indices = d_indices.getValue();
-    for(unsigned int i = 0; i < indices.size(); i++)
+    for(unsigned int i=0; i<indices .size(); i++)
     {
         if (positions.size() <= indices[i])
         {
-            msg_error(this) << "Index " << i << " exceeds mechanical state bounds";
+            msg_error(this) << "Index at index " << i << " is too large regarding mechanicalState [position] size" ;
             d_componentState = ComponentState::Invalid;
             return;
         }
@@ -196,10 +262,12 @@ void CameraProjectionPointsModel<DataTypes>::checkIndicesRegardingState()
 }
 
 
+
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::setIndicesDefaultValue()
 {
-    WriteAccessor<sofa::Data<vector<unsigned int>>> defaultIndices = d_indices;
+    WriteAccessor<sofa::Data<vector<unsigned int> > > defaultIndices = d_indices;
     defaultIndices.resize(1);
 }
 
@@ -211,30 +279,58 @@ void CameraProjectionPointsModel<DataTypes>::resizeIndicesRegardingState()
 }
 
 
-/**
- * @brief Proyecta un punto 3D al plano de imagen 2D (u, v) mediante el modelo Pinhole.
- */
-Eigen::Vector2d calculateProjectedPoint(
+
+
+
+
+Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
     double x, double y, double z,
+    const Eigen::Matrix3d& R,
+    double radius,
     const sofa::type::Vec2d& focalLength,
     const sofa::type::Vec2d& principalPoint,
     const sofa::type::Vec3d& cameraPos)
 {
-    // Coordenadas relativas a la cámara
+    // relative coordinates of the camera 
     double x_rel = x - cameraPos[0];
     double y_rel = y - cameraPos[1];
     double z_rel = z - cameraPos[2];
+    
 
-    // Evitar división por cero
-    if (std::abs(z_rel) < 1e-6)
-        z_rel = (z_rel >= 0) ? 1e-6 : -1e-6;
-
-    // Proyección 2D Pinhole
+    // 2d projection
     double u = focalLength[0] * (x_rel / z_rel) + principalPoint[0];
-    double v = focalLength[1] * (y_rel / z_rel) + principalPoint[1];
+    double v = focalLength[1] * (y_rel / z_rel) + principalPoint[1]; 
 
-    return Eigen::Vector2d(u, v);
+    // inclination nad normal
+    Eigen::Vector3d normal = R.col(2); 
+    double cos_tilt = std::abs(normal(2));
+    if (cos_tilt < 1e-3) cos_tilt = 1e-3;
+
+    // semiaxes of the ellipse
+    double semi_a = focalLength[0] * (radius / z_rel);  
+    double semi_b = semi_a * cos_tilt;           
+
+    // amgle of the semiaxes
+    double alpha_rad = std::atan2(-normal(1), normal(0)) + (M_PI / 2.0);
+    double alpha_deg = alpha_rad * (180.0 / M_PI);
+
+    // normalization
+    while (alpha_deg < 0.0) alpha_deg += 180.0;
+    while (alpha_deg >= 180.0) alpha_deg -= 180.0;
+
+    Eigen::Matrix<double, 5, 1> ellipse;
+    ellipse << u, v, semi_a, semi_b, alpha_deg;
+
+    // std::cout << "Simulated Projection: " << ellipse.transpose() << std::endl;
+    // std::cout << "relative position: " << x_rel << ", " << y_rel << ", " << z_rel << std::endl;
+    // std::cout << "camera position: " << cameraPos[0] << ", " << cameraPos[1] << ", " << cameraPos[2] << std::endl;
+    // std::cout << "xyz position: " << x << ", " << y << ", " << z << std::endl;
+
+    return ellipse;
 }
+
+
+
 
 
 template<class DataTypes>
@@ -258,6 +354,8 @@ void CameraProjectionPointsModel<DataTypes>::getConstraintViolation(const Constr
 }
 
 
+
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const ConstraintParams* cParams,
                                                               DataMatrixDeriv &cMatrix,
@@ -273,48 +371,75 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
     const auto& constraintIndex = sofa::helper::getReadAccessor(d_constraintIndex);
     MatrixDeriv& column = *cMatrix.beginEdit();
     
+    // Accesores de SOFA para la cámara y el disco
     const auto focalLength = d_focalLength.getValue();
     const auto principalPoint = d_principalPoint.getValue();
+    const double radius = d_radiusEllipse.getValue();
     const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
+
 
     auto Jacobian = sofa::helper::getWriteAccessor(d_Jacobian);
     const auto& readAccessor = sofa::helper::getReadAccessor(x);
 
-    const double Cambio = 1e-4; // Paso de perturbación
+    // epsilon in this case 
+    const double Cambio = 1e-4;
 
     for (const auto& coord : readAccessor) {
+        // get the 3d position 
         double x_pos = coord[0];
         double y_pos = coord[1];
         double z_pos = coord[2];
 
-        // Proyección original en 2D (u, v)
-        Eigen::Vector2d P_0 = calculateProjectedPoint(x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
+        // getting the orientation
+        Eigen::Quaterniond q(coord[6], coord[3], coord[4], coord[5]); // (w, x, y, z)
+        Eigen::Matrix3d R = q.toRotationMatrix();
 
-        // Derivadas numéricas respecto a x, y, z
-        Eigen::Vector2d P_x = calculateProjectedPoint(x_pos + Cambio, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
-        Eigen::Vector2d dP_dx = (P_x - P_0) / Cambio;
+        // this is the original projected ellipse without perturbation
+        Eigen::Matrix<double, 5, 1> E_0 = calculateProjectedEllipse(x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
 
-        Eigen::Vector2d P_y = calculateProjectedPoint(x_pos, y_pos + Cambio, z_pos, focalLength, principalPoint, cameraPosition);
-        Eigen::Vector2d dP_dy = (P_y - P_0) / Cambio;
+        // --- derivatives with respect to x ---
+        Eigen::Matrix<double, 5, 1> E_x = calculateProjectedEllipse(x_pos + Cambio, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
+        Eigen::Matrix<double, 5, 1> dE_dx = (E_x - E_0) / Cambio;
 
-        Eigen::Vector2d P_z = calculateProjectedPoint(x_pos, y_pos, z_pos + Cambio, focalLength, principalPoint, cameraPosition);
-        Eigen::Vector2d dP_dz = (P_z - P_0) / Cambio;
+        // --- derivatives with respect to y ---
+        Eigen::Matrix<double, 5, 1> E_y = calculateProjectedEllipse(x_pos, y_pos + Cambio, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
+        Eigen::Matrix<double, 5, 1> dE_dy = (E_y - E_0) / Cambio;
 
-        // Matriz Jacobiana de dimensión 2 x Deriv::total_size (u y v)
-        for (int i = 0; i < 2; ++i) {
-            // Nota: Se asume que Deriv maneja al menos 3 Grados de Libertad traslacionales
-            sofa::type::Vec<6, double> row(0.0);
-            row[0] = dP_dx[i];
-            row[1] = dP_dy[i];
-            row[2] = dP_dz[i];
-            // Componentes de rotación quedan en 0 si las hay
-            Jacobian[i] = row;
+        // --- derivatives with respect to z ---
+        Eigen::Matrix<double, 5, 1> E_z = calculateProjectedEllipse(x_pos, y_pos, z_pos + Cambio, R, radius, focalLength, principalPoint, cameraPosition);
+        Eigen::Matrix<double, 5, 1> dE_dz = (E_z - E_0) / Cambio;
+
+        // --- derivatives with respect to rotations (perturbation in X, Y, Z rotation) ---
+        // perturbation Roll (around X)
+        Eigen::Matrix3d R_rx = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitX());
+        Eigen::Matrix<double, 5, 1> dE_dRx = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rx, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
+
+        // perturbation Pitch (around Y)
+        Eigen::Matrix3d R_ry = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitY());
+        Eigen::Matrix<double, 5, 1> dE_dRy = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_ry, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
+
+        // perturbation Yaw (around Z)
+        Eigen::Matrix3d R_rz = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitZ());
+        Eigen::Matrix<double, 5, 1> dE_dRz = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rz, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
+
+        // jacobian matrix (5 rows: u, v, a, b, alpha)
+        for (int i = 0; i < 5; ++i) {
+            Jacobian[i] = sofa::type::Vec<6, double>(
+                dE_dx[i],   // d/dx
+                dE_dy[i],   // d/dy
+                dE_dz[i],   // d/dz
+                dE_dRx[i],  // d/dRoll
+                dE_dRy[i],  // d/dPitch
+                dE_dRz[i]   // d/dYaw
+            );
         } 
+
+
     }
 
-    // Escribir restricciones globales (2 restricciones: u, v)
+    // write constraints in the global system of SOFA
     unsigned int index = 0;
-    for (unsigned j = 0; j < 2; j++) { 
+    for (unsigned j = 0; j < 5; j++) { 
         MatrixDerivRowIterator rowIterator = column.writeLine(constraintIndex + index);
         rowIterator.setCol(0, Jacobian[j]);
         index++;
@@ -326,7 +451,11 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
 }
 
 
+
+
 template<class DataTypes>
+
+
 void CameraProjectionPointsModel<DataTypes>::storeResults(vector<double> &delta)
 {
     if(d_componentState.getValue() != ComponentState::Valid)
@@ -336,13 +465,14 @@ void CameraProjectionPointsModel<DataTypes>::storeResults(vector<double> &delta)
 }
 
 
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::setDefaultDirections()
 {
     using Deriv = typename DataTypes::Deriv;
-    sofa::type::vector<Deriv> jacobianInit(2); // 2 restricciones (u, v)
+    sofa::type::vector<Deriv> jacobianInit(5); // 5 constraints (u, v, a, b, alpha)
 
-    for (size_t i = 0; i < 2; ++i)
+    for (size_t i = 0; i < 5; ++i)
     {
         jacobianInit[i].clear();
         if (i < Deriv::total_size)
@@ -365,11 +495,13 @@ void CameraProjectionPointsModel<DataTypes>::setDefaultUseDirections()
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::normalizeDirections()
 {
+
     WriteAccessor<sofa::Data<VecDeriv>> directions = d_directions;
     directions.resize(Deriv::total_size);
-    for(unsigned int i = 0; i < Deriv::total_size; i++)
+    for(unsigned int i=0; i<Deriv::total_size; i++)
         directions[i].normalize();
 }
+
 
 
 template<class DataTypes>
@@ -378,6 +510,7 @@ void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
     if (d_componentState.getValue() != ComponentState::Valid)
         return;
 
+    // this is for drawing only if the option to show constraints/forcefields is activated
     if (!vparams->displayFlags().getShowInteractionForceFields())
         return;
 
@@ -387,30 +520,70 @@ void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
     if (indices.empty() || positions.empty()) 
         return;
 
-    // Posición 3D del punto seleccionado
+    // get 3d position
     const auto& coord = positions[indices[0]];
     double x_pos = coord[0];
     double y_pos = coord[1];
     double z_pos = coord[2];
 
+    Eigen::Quaterniond q(coord[6], coord[3], coord[4], coord[5]);
+    Eigen::Matrix3d R = q.toRotationMatrix();
+
     const auto focalLength = d_focalLength.getValue();
     const auto principalPoint = d_principalPoint.getValue();
+    const double radius = d_radiusEllipse.getValue();
     const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
+    // get the 5 parameters of the ellipse 2D [u, v, a, b, alpha]
+    Eigen::Matrix<double, 5, 1> ellipse = calculateProjectedEllipse(
+        x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
 
-    // Obtener proyección 2D (u, v)
-    Eigen::Vector2d point2D = calculateProjectedPoint(
-        x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
+    double u = ellipse[0];
+    double v = ellipse[1];
+    double a = ellipse[2];
+    double b = ellipse[3];
+    double alpha = ellipse[4];
 
-    // Re-proyectar al espacio 3D a la profundidad z_pos para visualización en escena SOFA
-    double X_3d = (point2D[0] - principalPoint[0]) * z_pos / focalLength[0];
-    double Y_3d = (point2D[1] - principalPoint[1]) * z_pos / focalLength[1];
-    double Z_3d = z_pos;
+    // generate the contour of the ellipse (36 segments)
+    const int num_segments = 36;
+    sofa::type::vector<sofa::type::Vec3d> ellipsePoints3D;
+    ellipsePoints3D.reserve(num_segments * 2);
 
+    double cos_a = std::cos(alpha);
+    double sin_a = std::sin(alpha);
+
+    sofa::type::Vec3d prevPoint;
+
+    for (int i = 0; i <= num_segments; ++i)
+    {
+        double theta = 2.0 * M_PI * i / num_segments;
+        
+        // parametric equation of the rotated ellipse in 2D (pixels)
+        double x_local = a * std::cos(theta);
+        double y_local = b * std::sin(theta);
+
+        double u_p = u + (x_local * cos_a - y_local * sin_a);
+        double v_p = v + (x_local * sin_a + y_local * cos_a);
+
+        // projection back to 3D using the pinhole camera model
+        double X_3d = (u_p - principalPoint[0]) * z_pos / focalLength[0];
+        double Y_3d = (v_p - principalPoint[1]) * z_pos / focalLength[1];
+        double Z_3d = z_pos;
+
+        sofa::type::Vec3d currentPoint(X_3d, Y_3d, Z_3d);
+
+        if (i > 0)
+        {
+            // add a point to form the line segment
+            ellipsePoints3D.push_back(prevPoint);
+            ellipsePoints3D.push_back(currentPoint);
+        }
+        prevPoint = currentPoint;
+    }
+
+    // render
+    vparams->drawTool()->drawLines(ellipsePoints3D, 4.0f, RGBAColor::red());
     vector<Coord> points;
-    points.push_back(Coord(X_3d, Y_3d, Z_3d));
-
-    // Dibujar el punto proyectado en color rojo
-    drawPoints(vparams, points, 8.0f, RGBAColor::red());
+    points.push_back(positions[indices[0]]);
+    drawPoints(vparams, points, 8.0f, RGBAColor::green());
 }
-
-} // namespace softrobots::constraint
+} // namespace

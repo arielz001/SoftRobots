@@ -32,14 +32,14 @@
 namespace softrobots::constraint
 {
 
-using softrobots::behavior::SoftRobotsConstraint;
-using sofa::core::ConstraintParams;
-using sofa::linearalgebra::BaseVector;
-using sofa::type::Vec;
-using sofa::core::visual::VisualParams;
+using softrobots::behavior::SoftRobotsConstraint ;
+using sofa::core::ConstraintParams ;
+using sofa::linearalgebra::BaseVector ;
+using sofa::type::Vec ;
+using sofa::core::visual::VisualParams ;
 
 /**
- * Class implementing 2D pinhole point projection constraint model (u, v)
+ * This class contains common implementation of position constraints
 */
 template< class DataTypes >
 class CameraProjectionPointsModel : virtual public SoftRobotsConstraint<DataTypes>
@@ -72,13 +72,16 @@ public:
     //////////////////////////////////////////////////////
 
     /////////////// Inherited from Effector ////////////
-    void buildConstraintMatrix(const ConstraintParams* cParams,
+    void buildConstraintMatrix(const ConstraintParams* cParams ,
                                DataMatrixDeriv &cMatrix,
                                unsigned int &cIndex,
                                const DataVecCoord &x) override;
     ///////////////////////////////////////////////////////////////
 
+
     /////////////// Inherited from SoftRobotsBaseConstraint ////////////////
+
+    // void storeResults(sofa::type::vector<double> &delta) override;
     void storeResults(sofa::type::vector<double> &delta) override;
     
     void getConstraintViolation(const sofa::core::ConstraintParams* cParams,
@@ -86,54 +89,68 @@ public:
                                 const sofa::linearalgebra::BaseVector* Jdx) override;
     ///////////////////////////////////////////////////////////////////////////
 
+// protected:
 public:
-    sofa::Data<sofa::type::vector<unsigned int>>      d_indices;
+    sofa::Data<sofa::type::vector<unsigned int> >     d_indices;
     sofa::Data<sofa::type::vector<Real>>              d_weight;
     sofa::Data<VecDeriv>                              d_directions;
     sofa::Data<Vec<Deriv::total_size, bool>>          d_useDirections;
     sofa::Data<sofa::type::vector<Real>>              d_delta;
     sofa::Data<sofa::type::Vec2d>                     d_focalLength;
     sofa::Data<sofa::type::Vec2d>                     d_principalPoint;
+    sofa::Data<Real>                                  d_radiusEllipse;
     sofa::Data<VecDeriv>                              d_Jacobian;
     sofa::Data<sofa::type::Vec3d>                     d_cameraPosition;
 
     ////////////////////////// Inherited attributes ////////////////////////////
-    using SoftRobotsConstraint<DataTypes>::m_nbLines;
-    using SoftRobotsConstraint<DataTypes>::d_constraintIndex;
-    using SoftRobotsConstraint<DataTypes>::d_componentState;
-    using SoftRobotsConstraint<DataTypes>::m_state;
+    using SoftRobotsConstraint<DataTypes>::m_nbLines ;
+    using SoftRobotsConstraint<DataTypes>::d_constraintIndex ;
+    using SoftRobotsConstraint<DataTypes>::d_componentState ;
+    using SoftRobotsConstraint<DataTypes>::m_state ;
     ////////////////////////////////////////////////////////////////////////////
 
     void setDefaultDirections();
     void setDefaultUseDirections();
     void normalizeDirections();
-    void drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+    void drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color) ;
 
+// private:
 public:
     void internalInit();
     void checkIndicesRegardingState();
     void setIndicesDefaultValue();
-    resizeIndicesRegardingState();
     void resizeIndicesRegardingState();
+
+
 };
+
 
 template<> SOFA_SOFTROBOTS_API
 void CameraProjectionPointsModel<sofa::defaulttype::Rigid3Types>::normalizeDirections();
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionPointsModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+void CameraProjectionPointsModel<sofa::defaulttype::Vec3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionPointsModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+void CameraProjectionPointsModel<sofa::defaulttype::Vec2Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
 template<> SOFA_SOFTROBOTS_API
-void CameraProjectionPointsModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size, const sofa::type::RGBAColor& color);
+void CameraProjectionPointsModel<sofa::defaulttype::Rigid3Types>::drawPoints(const VisualParams* vparams, const std::vector<Coord> &points, float size,  const  sofa::type::RGBAColor& color);
 
-#if !defined(SOFTROBOTS_CAMERAPROJECTIONMODEL_CPP)
+// #if !defined(SOFTROBOTS_CameraProjectionMODEL_CPP)
+// extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Vec1Types>;
+// extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Vec2Types>;
+// extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Vec3Types>;
+// extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Rigid3Types>;
+// #endif
+
+#if !defined(SOFTROBOTS_CAMERAPROJECTIONPOINTSMODEL_CPP)
 extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Vec1Types>;
 extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Vec2Types>;
 extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Vec3Types>;
 extern template class SOFA_SOFTROBOTS_API CameraProjectionPointsModel<sofa::defaulttype::Rigid3Types>;
 #endif
 
-} // namespace softrobots::constraint
+} // namespace
+
+
