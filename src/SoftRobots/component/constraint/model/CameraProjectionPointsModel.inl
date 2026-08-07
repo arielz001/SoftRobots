@@ -53,7 +53,6 @@ using sofa::type::RGBAColor;
 
 
 
-
 template<class DataTypes>
 CameraProjectionPointsModel<DataTypes>::CameraProjectionPointsModel(MechanicalState* object)
     : Inherit1(object)
@@ -71,8 +70,6 @@ CameraProjectionPointsModel<DataTypes>::CameraProjectionPointsModel(MechanicalSt
     , d_Jacobian(initData(&d_Jacobian,"JacobianBq",
                           "Jacobian relating node motion to B change\n"
                           "."))
-    , d_radiusEllipse(initData(&d_radiusEllipse, "radiusEllipse",
-                                 "Radius of the 3D feature ellipse/disk"))
                                  
     , d_focalLength(initData(&d_focalLength, "focalLength",
                                  "Focal length of the camera"))
@@ -156,14 +153,6 @@ void CameraProjectionPointsModel<DataTypes>::reinit()
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::internalInit()
 {
-    if(!d_radiusEllipse.isSet())
-    {
-        // setDefaultDirections();
-    }
-    else
-    {
-        const auto radiusEllipse = sofa::helper::getReadAccessor(d_radiusEllipse);
-    }
     if(!d_focalLength.isSet())
     {
         // setDefaultDirections();
@@ -237,6 +226,9 @@ void CameraProjectionPointsModel<DataTypes>::internalInit()
 }
 
 
+
+// =============================================================================
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::checkIndicesRegardingState()
 {
@@ -282,11 +274,8 @@ void CameraProjectionPointsModel<DataTypes>::resizeIndicesRegardingState()
 
 
 
-
-Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
+Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
     double x, double y, double z,
-    const Eigen::Matrix3d& R,
-    double radius,
     const sofa::type::Vec2d& focalLength,
     const sofa::type::Vec2d& principalPoint,
     const sofa::type::Vec3d& cameraPos)
@@ -295,38 +284,16 @@ Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
     double x_rel = x - cameraPos[0];
     double y_rel = y - cameraPos[1];
     double z_rel = z - cameraPos[2];
-    
 
     // 2d projection
     double u = focalLength[0] * (x_rel / z_rel) + principalPoint[0];
     double v = focalLength[1] * (y_rel / z_rel) + principalPoint[1]; 
 
-    // inclination nad normal
-    Eigen::Vector3d normal = R.col(2); 
-    double cos_tilt = std::abs(normal(2));
-    if (cos_tilt < 1e-3) cos_tilt = 1e-3;
 
-    // semiaxes of the ellipse
-    double semi_a = focalLength[0] * (radius / z_rel);  
-    double semi_b = semi_a * cos_tilt;           
+    Eigen::Matrix<double, 2, 1> point;
+    point << u, v;
 
-    // amgle of the semiaxes
-    double alpha_rad = std::atan2(-normal(1), normal(0)) + (M_PI / 2.0);
-    double alpha_deg = alpha_rad * (180.0 / M_PI);
-
-    // normalization
-    while (alpha_deg < 0.0) alpha_deg += 180.0;
-    while (alpha_deg >= 180.0) alpha_deg -= 180.0;
-
-    Eigen::Matrix<double, 5, 1> ellipse;
-    ellipse << u, v, semi_a, semi_b, alpha_deg;
-
-    // std::cout << "Simulated Projection: " << ellipse.transpose() << std::endl;
-    // std::cout << "relative position: " << x_rel << ", " << y_rel << ", " << z_rel << std::endl;
-    // std::cout << "camera position: " << cameraPos[0] << ", " << cameraPos[1] << ", " << cameraPos[2] << std::endl;
-    // std::cout << "xyz position: " << x << ", " << y << ", " << z << std::endl;
-
-    return ellipse;
+    return point;
 }
 
 
@@ -371,12 +338,10 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
     const auto& constraintIndex = sofa::helper::getReadAccessor(d_constraintIndex);
     MatrixDeriv& column = *cMatrix.beginEdit();
     
-    // Accesores de SOFA para la cámara y el disco
     const auto focalLength = d_focalLength.getValue();
     const auto principalPoint = d_principalPoint.getValue();
-    const double radius = d_radiusEllipse.getValue();
-    const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
 
+    const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
 
     auto Jacobian = sofa::helper::getWriteAccessor(d_Jacobian);
     const auto& readAccessor = sofa::helper::getReadAccessor(x);
@@ -390,47 +355,29 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
         double y_pos = coord[1];
         double z_pos = coord[2];
 
-        // getting the orientation
-        Eigen::Quaterniond q(coord[6], coord[3], coord[4], coord[5]); // (w, x, y, z)
-        Eigen::Matrix3d R = q.toRotationMatrix();
 
-        // this is the original projected ellipse without perturbation
-        Eigen::Matrix<double, 5, 1> E_0 = calculateProjectedEllipse(x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
+        // this is the original projected point without perturbation
+        Eigen::Matrix<double, 2, 1> E_0 = calculateProjectedPoint(x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
 
         // --- derivatives with respect to x ---
-        Eigen::Matrix<double, 5, 1> E_x = calculateProjectedEllipse(x_pos + Cambio, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
-        Eigen::Matrix<double, 5, 1> dE_dx = (E_x - E_0) / Cambio;
+        Eigen::Matrix<double, 2, 1> E_x = calculateProjectedPoint(x_pos + Cambio, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
+        Eigen::Matrix<double, 2, 1> dE_dx = (E_x - E_0) / Cambio;
 
         // --- derivatives with respect to y ---
-        Eigen::Matrix<double, 5, 1> E_y = calculateProjectedEllipse(x_pos, y_pos + Cambio, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
-        Eigen::Matrix<double, 5, 1> dE_dy = (E_y - E_0) / Cambio;
+        Eigen::Matrix<double, 2, 1> E_y = calculateProjectedPoint(x_pos, y_pos + Cambio, z_pos, focalLength, principalPoint, cameraPosition);
+        Eigen::Matrix<double, 2, 1> dE_dy = (E_y - E_0) / Cambio;
 
         // --- derivatives with respect to z ---
-        Eigen::Matrix<double, 5, 1> E_z = calculateProjectedEllipse(x_pos, y_pos, z_pos + Cambio, R, radius, focalLength, principalPoint, cameraPosition);
-        Eigen::Matrix<double, 5, 1> dE_dz = (E_z - E_0) / Cambio;
+        Eigen::Matrix<double, 2, 1> E_z = calculateProjectedPoint(x_pos, y_pos, z_pos + Cambio, focalLength, principalPoint, cameraPosition);
+        Eigen::Matrix<double, 2, 1> dE_dz = (E_z - E_0) / Cambio;
 
-        // --- derivatives with respect to rotations (perturbation in X, Y, Z rotation) ---
-        // perturbation Roll (around X)
-        Eigen::Matrix3d R_rx = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitX());
-        Eigen::Matrix<double, 5, 1> dE_dRx = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rx, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
 
-        // perturbation Pitch (around Y)
-        Eigen::Matrix3d R_ry = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitY());
-        Eigen::Matrix<double, 5, 1> dE_dRy = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_ry, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
-
-        // perturbation Yaw (around Z)
-        Eigen::Matrix3d R_rz = R * Eigen::AngleAxisd(Cambio, Eigen::Vector3d::UnitZ());
-        Eigen::Matrix<double, 5, 1> dE_dRz = (calculateProjectedEllipse(x_pos, y_pos, z_pos, R_rz, radius, focalLength, principalPoint, cameraPosition) - E_0) / Cambio;
-
-        // jacobian matrix (5 rows: u, v, a, b, alpha)
-        for (int i = 0; i < 5; ++i) {
-            Jacobian[i] = sofa::type::Vec<6, double>(
+        // jacobian matrix (2 rows: u, v)
+        for (int i = 0; i < 2; ++i) {
+            Jacobian[i] = sofa::type::Vec<3, double>(
                 dE_dx[i],   // d/dx
                 dE_dy[i],   // d/dy
-                dE_dz[i],   // d/dz
-                dE_dRx[i],  // d/dRoll
-                dE_dRy[i],  // d/dPitch
-                dE_dRz[i]   // d/dYaw
+                dE_dz[i]   // d/dz
             );
         } 
 
@@ -439,7 +386,7 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
 
     // write constraints in the global system of SOFA
     unsigned int index = 0;
-    for (unsigned j = 0; j < 5; j++) { 
+    for (unsigned j = 0; j < 2; j++) { 
         MatrixDerivRowIterator rowIterator = column.writeLine(constraintIndex + index);
         rowIterator.setCol(0, Jacobian[j]);
         index++;
@@ -470,9 +417,9 @@ template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::setDefaultDirections()
 {
     using Deriv = typename DataTypes::Deriv;
-    sofa::type::vector<Deriv> jacobianInit(5); // 5 constraints (u, v, a, b, alpha)
+    sofa::type::vector<Deriv> jacobianInit(2); // 2 constraints (u, v)
 
-    for (size_t i = 0; i < 5; ++i)
+    for (size_t i = 0; i < 2; ++i)
     {
         jacobianInit[i].clear();
         if (i < Deriv::total_size)
@@ -526,64 +473,36 @@ void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
     double y_pos = coord[1];
     double z_pos = coord[2];
 
-    Eigen::Quaterniond q(coord[6], coord[3], coord[4], coord[5]);
-    Eigen::Matrix3d R = q.toRotationMatrix();
 
     const auto focalLength = d_focalLength.getValue();
     const auto principalPoint = d_principalPoint.getValue();
-    const double radius = d_radiusEllipse.getValue();
+
     const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
-    // get the 5 parameters of the ellipse 2D [u, v, a, b, alpha]
-    Eigen::Matrix<double, 5, 1> ellipse = calculateProjectedEllipse(
-        x_pos, y_pos, z_pos, R, radius, focalLength, principalPoint, cameraPosition);
+    // get the 2 parameters of the point 2D [u, v]
+    Eigen::Matrix<double, 2, 1> point = calculateProjectedPoint(
+        x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
 
-    double u = ellipse[0];
-    double v = ellipse[1];
-    double a = ellipse[2];
-    double b = ellipse[3];
-    double alpha = ellipse[4];
+    double u = point[0];
+    double v = point[1];
 
-    // generate the contour of the ellipse (36 segments)
-    const int num_segments = 36;
-    sofa::type::vector<sofa::type::Vec3d> ellipsePoints3D;
-    ellipsePoints3D.reserve(num_segments * 2);
+    // projection back to 3D using the pinhole camera model
+    double X_3d = (u - principalPoint[0]) * z_pos / focalLength[0];
+    double Y_3d = (v - principalPoint[1]) * z_pos / focalLength[1];
+    double Z_3d = z_pos;
 
-    double cos_a = std::cos(alpha);
-    double sin_a = std::sin(alpha);
 
-    sofa::type::Vec3d prevPoint;
+    sofa::type::Vec3d projectedPoint3D(X_3d, Y_3d, Z_3d);
 
-    for (int i = 0; i <= num_segments; ++i)
-    {
-        double theta = 2.0 * M_PI * i / num_segments;
-        
-        // parametric equation of the rotated ellipse in 2D (pixels)
-        double x_local = a * std::cos(theta);
-        double y_local = b * std::sin(theta);
+    sofa::type::vector<sofa::type::Vec3d> linePoints;
+    linePoints.push_back(cameraPosition);     
+    linePoints.push_back(projectedPoint3D);   
 
-        double u_p = u + (x_local * cos_a - y_local * sin_a);
-        double v_p = v + (x_local * sin_a + y_local * cos_a);
+    vparams->drawTool()->drawLines(linePoints, 4.0f,  RGBAColor::red());
 
-        // projection back to 3D using the pinhole camera model
-        double X_3d = (u_p - principalPoint[0]) * z_pos / focalLength[0];
-        double Y_3d = (v_p - principalPoint[1]) * z_pos / focalLength[1];
-        double Z_3d = z_pos;
-
-        sofa::type::Vec3d currentPoint(X_3d, Y_3d, Z_3d);
-
-        if (i > 0)
-        {
-            // add a point to form the line segment
-            ellipsePoints3D.push_back(prevPoint);
-            ellipsePoints3D.push_back(currentPoint);
-        }
-        prevPoint = currentPoint;
-    }
-
-    // render
-    vparams->drawTool()->drawLines(ellipsePoints3D, 4.0f, RGBAColor::red());
     vector<Coord> points;
     points.push_back(positions[indices[0]]);
     drawPoints(vparams, points, 8.0f, RGBAColor::green());
 }
-} // namespace
+}
+
+
