@@ -33,6 +33,7 @@
 
 #include <SoftRobots/component/constraint/model/CameraProjectionModel.h>
 #include <Eigen/Dense>
+
 //#include <Eigen/Geometry>  // Para cuaterniones
 //using namespace std;
 using namespace Eigen;
@@ -320,7 +321,7 @@ Eigen::Matrix<double, 5, 1> calculateProjectedEllipse(
     Eigen::Matrix<double, 5, 1> ellipse;
     ellipse << u, v, semi_a, semi_b, alpha_deg;
 
-    std::cout << "Simulated Projection: " << ellipse.transpose() << std::endl;
+    // std::cout << "Simulated Projection: " << ellipse.transpose() << std::endl;
     // std::cout << "relative position: " << x_rel << ", " << y_rel << ", " << z_rel << std::endl;
     // std::cout << "camera position: " << cameraPos[0] << ", " << cameraPos[1] << ", " << cameraPos[2] << std::endl;
     // std::cout << "xyz position: " << x << ", " << y << ", " << z << std::endl;

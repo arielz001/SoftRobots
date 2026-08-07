@@ -98,6 +98,7 @@ const char* getModuleComponentList()
 
 SOFA_LINK_CLASS(AnimationEditor)
 SOFA_LINK_CLASS(CameraProjectionModel)
+SOFA_LINK_CLASS(CameraProjectionPointsModel)
 SOFA_LINK_CLASS(DataVariationLimiter)
 SOFA_LINK_CLASS(PartialRigidificationConstraint)
 SOFA_LINK_CLASS(PartialRigidificationForceField)
