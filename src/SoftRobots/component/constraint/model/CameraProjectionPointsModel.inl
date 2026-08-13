@@ -449,7 +449,6 @@ void CameraProjectionPointsModel<DataTypes>::normalizeDirections()
 }
 
 
-
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
 {
@@ -484,10 +483,12 @@ void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
     double u = point[0];
     double v = point[1];
 
-    // projection back to 3D using the pinhole camera model
-    double X_3d = (u - principalPoint[0]) * z_pos / focalLength[0];
-    double Y_3d = (v - principalPoint[1]) * z_pos / focalLength[1];
+    double z_rel = z_pos - cameraPosition[2];
+
+    double X_3d = (u - principalPoint[0]) * z_rel / focalLength[0] + cameraPosition[0];
+    double Y_3d = (v - principalPoint[1]) * z_rel / focalLength[1] + cameraPosition[1];
     double Z_3d = z_pos;
+    // --------------------------------------------------
 
 
     sofa::type::Vec3d projectedPoint3D(X_3d, Y_3d, Z_3d);
