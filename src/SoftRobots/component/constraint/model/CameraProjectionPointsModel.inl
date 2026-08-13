@@ -298,8 +298,6 @@ Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
 
 
 
-
-
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::getConstraintViolation(const ConstraintParams* cParams,
                                                                sofa::linearalgebra::BaseVector *resV,
@@ -377,6 +375,7 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
             Jacobian[i] = sofa::type::Vec<3, double>(
                 dE_dx[i],   // d/dx
                 dE_dy[i],   // d/dy
+                // 0.0   // d/dz
                 dE_dz[i]   // d/dz
             );
         } 
@@ -386,7 +385,7 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
 
     // write constraints in the global system of SOFA
     unsigned int index = 0;
-    for (unsigned j = 0; j < 2; j++) { 
+    for (unsigned j = 0; j < 3; j++) { 
         MatrixDerivRowIterator rowIterator = column.writeLine(constraintIndex + index);
         rowIterator.setCol(0, Jacobian[j]);
         index++;
