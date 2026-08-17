@@ -284,7 +284,7 @@ Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
     double x_rel = x - cameraPos[0];
     double y_rel = y - cameraPos[1];
     double z_rel = z - cameraPos[2];
-
+    // std::cout << "z_rel: " << z_rel << std::endl;
     // 2d projection
     double u = focalLength[0] * (x_rel / z_rel) + principalPoint[0];
     double v = focalLength[1] * (y_rel / z_rel) + principalPoint[1]; 
@@ -347,40 +347,68 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
     // epsilon in this case 
     const double Cambio = 1e-4;
 
-    for (const auto& coord : readAccessor) {
-        // get the 3d position 
-        double x_pos = coord[0];
-        double y_pos = coord[1];
-        double z_pos = coord[2];
+    // for (const auto& coord : readAccessor) {
+    //     // get the 3d position 
+    //     double x_pos = coord[0];
+    //     double y_pos = coord[1];
+    //     double z_pos = coord[2];
 
 
-        // this is the original projected point without perturbation
-        Eigen::Matrix<double, 2, 1> E_0 = calculateProjectedPoint(x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
+    //     // this is the original projected point without perturbation
+    //     Eigen::Matrix<double, 2, 1> E_0 = calculateProjectedPoint(x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
 
-        // --- derivatives with respect to x ---
-        Eigen::Matrix<double, 2, 1> E_x = calculateProjectedPoint(x_pos + Cambio, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
-        Eigen::Matrix<double, 2, 1> dE_dx = (E_x - E_0) / Cambio;
+    //     // --- derivatives with respect to x ---
+    //     Eigen::Matrix<double, 2, 1> E_x = calculateProjectedPoint(x_pos + Cambio, y_pos, z_pos, focalLength, principalPoint, cameraPosition);
+    //     Eigen::Matrix<double, 2, 1> dE_dx = (E_x - E_0) / Cambio;
 
-        // --- derivatives with respect to y ---
-        Eigen::Matrix<double, 2, 1> E_y = calculateProjectedPoint(x_pos, y_pos + Cambio, z_pos, focalLength, principalPoint, cameraPosition);
-        Eigen::Matrix<double, 2, 1> dE_dy = (E_y - E_0) / Cambio;
+    //     // --- derivatives with respect to y ---
+    //     Eigen::Matrix<double, 2, 1> E_y = calculateProjectedPoint(x_pos, y_pos + Cambio, z_pos, focalLength, principalPoint, cameraPosition);
+    //     Eigen::Matrix<double, 2, 1> dE_dy = (E_y - E_0) / Cambio;
 
-        // --- derivatives with respect to z ---
-        Eigen::Matrix<double, 2, 1> E_z = calculateProjectedPoint(x_pos, y_pos, z_pos + Cambio, focalLength, principalPoint, cameraPosition);
-        Eigen::Matrix<double, 2, 1> dE_dz = (E_z - E_0) / Cambio;
-
-
-        // jacobian matrix (2 rows: u, v)
-        for (int i = 0; i < 2; ++i) {
-            Jacobian[i] = sofa::type::Vec<3, double>(
-                dE_dx[i],   // d/dx
-                dE_dy[i],   // d/dy
-                // 0.0   // d/dz
-                dE_dz[i]   // d/dz
-            );
-        } 
+    //     // --- derivatives with respect to z ---
+    //     Eigen::Matrix<double, 2, 1> E_z = calculateProjectedPoint(x_pos, y_pos, z_pos + Cambio, focalLength, principalPoint, cameraPosition);
+    //     Eigen::Matrix<double, 2, 1> dE_dz = (E_z - E_0) / Cambio;
 
 
+    //     // jacobian matrix (2 rows: u, v)
+    //     for (int i = 0; i < 2; ++i) {
+    //         Jacobian[i] = sofa::type::Vec<3, double>(
+    //             dE_dx[i],   // d/dx
+    //             dE_dy[i],   // d/dy
+    //             // 0.0   // d/dz
+    //             dE_dz[i]   // d/dz
+    //         );
+    //     } 
+
+
+    // }
+
+    for (size_t pointIdx = 0; pointIdx < readAccessor.size(); ++pointIdx) {
+        const auto& coord = readAccessor[pointIdx];
+
+        const double X = coord[0] - cameraPosition[0];
+        const double Y = coord[1] - cameraPosition[1];
+        double Z = coord[2] - cameraPosition[2];
+
+        if (std::abs(Z) < 1e-6) {
+            Z = (Z >= 0) ? 1e-6 : -1e-6;
+        }
+
+        const double invZ = 1.0 / Z;
+        const double invZ2 = invZ * invZ;
+
+        
+        const double fx = focalLength[0];
+        const double fy = (focalLength.size() > 1) ? focalLength[1] : focalLength[0];
+
+        // [du/dx, du/dy, du/dz]
+        sofa::type::Vec<3, double> dU( fx * invZ, 0.0, -fx * X * invZ2 );
+
+        // [dv/dx, dv/dy, dv/dz]
+        sofa::type::Vec<3, double> dV(0.0,  fy * invZ, -fy * Y * invZ2 );
+
+        Jacobian[2 * pointIdx]     = dU;
+        Jacobian[2 * pointIdx + 1] = dV;
     }
 
     // write constraints in the global system of SOFA
