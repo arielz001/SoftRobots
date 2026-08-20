@@ -396,7 +396,6 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
 
         const double invZ = 1.0 / Z;
         const double invZ2 = invZ * invZ;
-
         
         const double fx = focalLength[0];
         const double fy = (focalLength.size() > 1) ? focalLength[1] : focalLength[0];
@@ -413,7 +412,7 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
 
     // write constraints in the global system of SOFA
     unsigned int index = 0;
-    for (unsigned j = 0; j < 3; j++) { 
+    for (unsigned j = 0; j < 2; j++) { 
         MatrixDerivRowIterator rowIterator = column.writeLine(constraintIndex + index);
         rowIterator.setCol(0, Jacobian[j]);
         index++;
@@ -516,6 +515,7 @@ void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
     double X_3d = (u - principalPoint[0]) * z_rel / focalLength[0] + cameraPosition[0];
     double Y_3d = (v - principalPoint[1]) * z_rel / focalLength[1] + cameraPosition[1];
     double Z_3d = z_pos;
+    
     // --------------------------------------------------
 
 
