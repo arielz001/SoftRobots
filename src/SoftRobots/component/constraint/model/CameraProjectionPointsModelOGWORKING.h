@@ -101,7 +101,6 @@ public:
     // sofa::Data<Real>                                  d_radiusEllipse;
     sofa::Data<VecDeriv>                              d_Jacobian;
     sofa::Data<sofa::type::Vec3d>                     d_cameraPosition;
-    sofa::Data<sofa::type::Vec3d>                     d_cameraOrientation;
 
     ////////////////////////// Inherited attributes ////////////////////////////
     using SoftRobotsConstraint<DataTypes>::m_nbLines ;

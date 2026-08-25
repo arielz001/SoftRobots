@@ -579,6 +579,7 @@ void CameraProjectionPointsModel<DataTypes>::normalizeDirections()
         directions[i].normalize();
 }
 
+
 template<class DataTypes>
 void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
 {
@@ -595,18 +596,39 @@ void CameraProjectionPointsModel<DataTypes>::draw(const VisualParams* vparams)
     if (indices.empty() || positions.empty()) 
         return;
 
-    // Obtener la posición 3D real del nodo
+    // get 3d position
     const auto& coord = positions[indices[0]];
     double x_pos = coord[0];
     double y_pos = coord[1];
     double z_pos = coord[2];
 
-    const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
 
-    // Dibujar línea desde la cámara DIRECTAMENTE al nodo 3D real
+    const auto focalLength = d_focalLength.getValue();
+    const auto principalPoint = d_principalPoint.getValue();
+
+    const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
+    const sofa::type::Vec3d cameraOrientation = d_cameraOrientation.getValue();
+    // get the 2 parameters of the point 2D [u, v]
+    Eigen::Matrix<double, 2, 1> point = calculateProjectedPoint(
+        x_pos, y_pos, z_pos, focalLength, principalPoint, cameraPosition, cameraOrientation);
+
+    double u = point[0];
+    double v = point[1];
+
+    double z_rel = z_pos - cameraPosition[2];
+
+    double X_3d = (u - principalPoint[0]) * z_rel / focalLength[0] + cameraPosition[0];
+    double Y_3d = (v - principalPoint[1]) * z_rel / focalLength[1] + cameraPosition[1];
+    double Z_3d = z_pos;
+    
+    // --------------------------------------------------
+
+
+    sofa::type::Vec3d projectedPoint3D(X_3d, Y_3d, Z_3d);
+
     sofa::type::vector<sofa::type::Vec3d> linePoints;
     linePoints.push_back(cameraPosition);     
-    linePoints.push_back(sofa::type::Vec3d(x_pos, y_pos, z_pos));   
+    linePoints.push_back(projectedPoint3D);   
 
     vparams->drawTool()->drawLines(linePoints, 4.0f,  RGBAColor::red());
 
