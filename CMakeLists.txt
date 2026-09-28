@@ -54,6 +54,8 @@ set(HEADER_FILES
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/SurfacePressureModel.h
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/SurfacePressureModel.inl
     
+    ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionPointsModel.h
+    ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionPointsModel.inl
 
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/AnimationEditor.h
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/AnimationEditor.inl
@@ -92,6 +94,9 @@ set(SOURCE_FILES
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CableModel.cpp
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/PositionModel.cpp
     ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/SurfacePressureModel.cpp
+
+    ${SOFTROBOTS_SOURCE_DIR}/component/constraint/model/CameraProjectionPointsModel.cpp
+
 
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/AnimationEditor.cpp
     ${SOFTROBOTS_SOURCE_DIR}/component/controller/DataVariationLimiter.cpp
