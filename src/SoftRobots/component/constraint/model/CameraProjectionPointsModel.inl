@@ -308,6 +308,46 @@ void CameraProjectionPointsModel<DataTypes>::resizeIndicesRegardingState()
 // }
 
 
+// Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
+//     double x, double y, double z,
+//     const sofa::type::Vec2d& focalLength,
+//     const sofa::type::Vec2d& principalPoint,
+//     const sofa::type::Vec3d& cameraPos,
+//     const sofa::type::Vec3d& cameraOrientation)
+// {
+//     double pitch = cameraOrientation[0] * M_PI / 180.0;
+//     double yaw   = cameraOrientation[1] * M_PI / 180.0;
+//     double roll  = cameraOrientation[2] * M_PI / 180.0; 
+
+//     Eigen::Matrix3d Rx, Ry, Rz;
+//     Rx = Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitX());
+//     Ry = Eigen::AngleAxisd(yaw,   Eigen::Vector3d::UnitY());
+//     Rz = Eigen::AngleAxisd(roll,  Eigen::Vector3d::UnitZ());
+
+//     Eigen::Matrix3d R = Rz * Ry * Rx;
+
+//     Eigen::Vector3d P_world(x, y, z);
+//     Eigen::Vector3d C(cameraPos[0], cameraPos[1], cameraPos[2]);
+//     Eigen::Vector3d P_rel = P_world - C;
+
+//     Eigen::Vector3d P_cam = R * P_rel;
+
+//     double x_cam = P_cam.x();
+//     double y_cam = P_cam.y();
+//     double z_cam = P_cam.z();
+
+//     if (std::abs(z_cam) < 1e-5) z_cam = 1e-5;
+
+//     double u = focalLength[0] * (x_cam / z_cam) + principalPoint[0];
+//     double v = focalLength[1] * (y_cam / z_cam) + principalPoint[1];
+
+//     Eigen::Matrix<double, 2, 1> point;
+//     point << u, v;
+
+//     return point;
+// }
+
+
 Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
     double x, double y, double z,
     const sofa::type::Vec2d& focalLength,
@@ -324,13 +364,15 @@ Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
     Ry = Eigen::AngleAxisd(yaw,   Eigen::Vector3d::UnitY());
     Rz = Eigen::AngleAxisd(roll,  Eigen::Vector3d::UnitZ());
 
+
     Eigen::Matrix3d R = Rz * Ry * Rx;
 
     Eigen::Vector3d P_world(x, y, z);
     Eigen::Vector3d C(cameraPos[0], cameraPos[1], cameraPos[2]);
     Eigen::Vector3d P_rel = P_world - C;
 
-    Eigen::Vector3d P_cam = R * P_rel;
+    // from world to camera coordinates, we use the transpose (inverse) of the camera pose:
+    Eigen::Vector3d P_cam = R.transpose() * P_rel;
 
     double x_cam = P_cam.x();
     double y_cam = P_cam.y();
@@ -341,11 +383,19 @@ Eigen::Matrix<double, 2, 1> calculateProjectedPoint(
     double u = focalLength[0] * (x_cam / z_cam) + principalPoint[0];
     double v = focalLength[1] * (y_cam / z_cam) + principalPoint[1];
 
+    // double v = focalLength[1] * (-y_cam / z_cam) + principalPoint[1];
+
     Eigen::Matrix<double, 2, 1> point;
     point << u, v;
 
+    std::cout << "Projected Point: (" << u << ", " << v << ")" << std::endl;
+    std::cout << "x_cam: " << x_cam << ", y_cam: " << y_cam << ", z_cam: " << z_cam << std::endl;
+    // std::cout << "x_real: " << x << ", y_real: " << y << ", z_real: " << z << std::endl;
+
     return point;
 }
+
+
 
 
 template<class DataTypes>
@@ -369,85 +419,6 @@ void CameraProjectionPointsModel<DataTypes>::getConstraintViolation(const Constr
 }
 
 
-
-
-// template<class DataTypes>
-// void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const ConstraintParams* cParams,
-//                                                               DataMatrixDeriv &cMatrix,
-//                                                               unsigned int &cIndex,
-//                                                               const DataVecCoord &x)
-// {
-//     if(d_componentState.getValue() != ComponentState::Valid)
-//         return;
-
-//     SOFA_UNUSED(cParams);
-
-//     d_constraintIndex.setValue(cIndex);
-//     const auto& constraintIndex = sofa::helper::getReadAccessor(d_constraintIndex);
-//     MatrixDeriv& column = *cMatrix.beginEdit();
-    
-//     const auto focalLength = d_focalLength.getValue();
-//     const auto principalPoint = d_principalPoint.getValue();
-
-//     const sofa::type::Vec3d cameraPosition = d_cameraPosition.getValue(); 
-//     const sofa::type::Vec3d cameraOrientation = d_cameraOrientation.getValue();
-
-
-//     double pitch = cameraOrientation[0] * M_PI / 180.0;
-//     double yaw   = cameraOrientation[1] * M_PI / 180.0;
-//     double roll  = cameraOrientation[2] * M_PI / 180.0;
-//     Eigen::Matrix3d Rx = Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitX()).toRotationMatrix();
-//     Eigen::Matrix3d Ry = Eigen::AngleAxisd(yaw,   Eigen::Vector3d::UnitY()).toRotationMatrix();
-//     Eigen::Matrix3d Rz = Eigen::AngleAxisd(roll,  Eigen::Vector3d::UnitZ()).toRotationMatrix();
-
-//     Eigen::Matrix3d R = Rz * Ry * Rx;
-
-
-//     auto Jacobian = sofa::helper::getWriteAccessor(d_Jacobian);
-//     const auto& readAccessor = sofa::helper::getReadAccessor(x);
-
-//     // epsilon in this case 
-//     const double Cambio = 1e-4;
-
-//     for (size_t pointIdx = 0; pointIdx < readAccessor.size(); ++pointIdx) {
-//         const auto& coord = readAccessor[pointIdx];
-
-//         const double X = coord[0] - cameraPosition[0];
-//         const double Y = coord[1] - cameraPosition[1];
-//         double Z = coord[2] - cameraPosition[2];
-
-//         if (std::abs(Z) < 1e-6) {
-//             Z = (Z >= 0) ? 1e-6 : -1e-6;
-//         }
-
-//         const double invZ = 1.0 / Z;
-//         const double invZ2 = invZ * invZ;
-        
-//         const double fx = focalLength[0];
-//         const double fy = (focalLength.size() > 1) ? focalLength[1] : focalLength[0];
-
-//         // [du/dx, du/dy, du/dz]
-//         sofa::type::Vec<3, double> dU( fx * invZ, 0.0, -fx * X * invZ2 );
-
-//         // [dv/dx, dv/dy, dv/dz]
-//         sofa::type::Vec<3, double> dV(0.0,  fy * invZ, -fy * Y * invZ2 );
-
-//         Jacobian[2 * pointIdx]     = dU;
-//         Jacobian[2 * pointIdx + 1] = dV;
-//     }
-
-//     // write constraints in the global system of SOFA
-//     unsigned int index = 0;
-//     for (unsigned j = 0; j < 2; j++) { 
-//         MatrixDerivRowIterator rowIterator = column.writeLine(constraintIndex + index);
-//         rowIterator.setCol(0, Jacobian[j]);
-//         index++;
-//     }
-
-//     cIndex += index;
-//     cMatrix.endEdit();
-//     m_nbLines = cIndex - constraintIndex;
-// }
 
 
 template<class DataTypes>
@@ -491,7 +462,9 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
 
         Eigen::Vector3d P_world(coord[0], coord[1], coord[2]);
         Eigen::Vector3d C(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
-        Eigen::Vector3d P_cam = R * (P_world - C);
+        // Eigen::Vector3d P_cam = R * (P_world - C);
+        Eigen::Vector3d P_cam = R.transpose() * (P_world - C);
+
 
         double X_cam = P_cam.x();
         double Y_cam = P_cam.y();
@@ -508,7 +481,9 @@ void CameraProjectionPointsModel<DataTypes>::buildConstraintMatrix(const Constra
         J_cam << fx * invZ, 0.0,       -fx * X_cam * invZ2,
                  0.0,       fy * invZ, -fy * Y_cam * invZ2;
 
-        Eigen::Matrix<double, 2, 3> J_world = J_cam * R;
+        // Eigen::Matrix<double, 2, 3> J_world = J_cam * R;
+        Eigen::Matrix<double, 2, 3> J_world = J_cam * R.transpose();
+
 
         sofa::type::Vec<3, double> dU(J_world(0, 0), J_world(0, 1), J_world(0, 2));
         sofa::type::Vec<3, double> dV(J_world(1, 0), J_world(1, 1), J_world(1, 2));
