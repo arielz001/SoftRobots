@@ -103,7 +103,6 @@ public:
     sofa::Data<sofa::type::Vec3d>                     d_cameraPosition;
     sofa::Data<sofa::type::Vec3d>                     d_cameraOrientation;
     sofa::Data<bool>                                  d_showProjectionLine;
-    sofa::Data<bool>                                  d_drawArrowEffect;
 
     ////////////////////////// Inherited attributes ////////////////////////////
     using SoftRobotsConstraint<DataTypes>::m_nbLines ;

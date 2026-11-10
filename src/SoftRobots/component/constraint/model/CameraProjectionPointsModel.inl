@@ -63,9 +63,6 @@ CameraProjectionPointsModel<DataTypes>::CameraProjectionPointsModel(MechanicalSt
     , d_showProjectionLine(initData(&d_showProjectionLine, "showProjectionLine",
                                  "If true, the projection line from the camera to the point will be drawn"))
 
-    , d_drawArrowEffect(initData(&d_drawArrowEffect, "drawArrowEffect",
-                                 "If true, an arrow effect will be drawn on the projection line"))
-
     , d_weight(initData(&d_weight, sofa::type::vector<Real>(Deriv::total_size, 1.), "weight",
                           "The parameter sets a weight to the minimization."))
 
